@@ -2,6 +2,7 @@
 A script is a miniPy syntax tree ("MST").  
 A cmd (can be multiline) is parsed into a cmd tree.  
 A sequence of cmd trees are parsed into an MST.  
+An expression (can be multiline) is parsed into an expression tree.  
 '''
 
 from lexems import *
@@ -52,6 +53,14 @@ class CmdTree(list):
         if type(lexem) in PREFIX_KEYWORDS:
             self.type = type(lexem)
             if type(lexem) in (If, Elif, While, Except):
+                expressionTree, last_lexem = parseExpression(lexer)
+                self.append(expressionTree)
+                expect(last_lexem, Column)
+                expect(next(lexer), EoL)
+            elif type(lexem) is For:
+                expressionTree, last_lexem = parseExpression(lexer)
+                self.append(expressionTree)
+                expect(last_lexem, In)
                 expressionTree, last_lexem = parseExpression(lexer)
                 self.append(expressionTree)
                 expect(last_lexem, Column)

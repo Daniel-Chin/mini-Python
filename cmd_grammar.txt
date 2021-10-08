@@ -2,6 +2,7 @@ Remarks:
   Dump the concept of "slot". 
     A slot can contain expressions:
       a[3].b[1] = 5
+      (a, b) = 3, 4
     A slot is always an expression. 
     So, why not disregard the difference at parse time, and deal with it at run time? 
 
@@ -24,6 +25,7 @@ The sequence I remember them:
   Finally:
   Import Identifier...
   Raise expression
+  For expression In expression:
 
 Classifying:
   needs indent:
@@ -31,6 +33,7 @@ Classifying:
     Elif expression:
     While expression:
     Except expression:
+    For expression In expression:
     Else:
     Try:
     Finally:
