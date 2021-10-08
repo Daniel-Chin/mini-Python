@@ -65,6 +65,7 @@ class Finally (Lexem) : pass
 class For     (Lexem) : pass
 class If      (Lexem) : pass
 class Import  (Lexem) : pass
+class From    (Lexem) : pass
 class In      (Lexem) : pass
 class Is      (Lexem) : pass
 class NONE    (Lexem) : pass

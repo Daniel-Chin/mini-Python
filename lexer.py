@@ -45,6 +45,7 @@ KEYWORDS = {
     'for'     : For     , 
     'if'      : If      , 
     'import'  : Import  , 
+    'from'    : From    , 
     'in'      : In      , 
     'is'      : Is      , 
     'None'    : NONE    , 

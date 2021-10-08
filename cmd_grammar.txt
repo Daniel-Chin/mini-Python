@@ -38,9 +38,10 @@ Classifying:
     Try:
     Finally:
     Def Identifier(Identifier...):
-    Class Identifier(expression):
+    Class Identifier(expression): (pass)
   elif starting with Keywords:
     Import Identifier
+    From expression Import Identifier, ... | *
     Del expression
     Raise expression
     Pass

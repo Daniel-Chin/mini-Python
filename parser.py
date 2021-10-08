@@ -1,11 +1,3 @@
-'''
-A script is a miniPy syntax tree ("MST").  
-A cmd (can be multiline) is parsed into a cmd tree.  
-A sequence of cmd trees are parsed into an MST.  
-An expression (can be multiline) is parsed into an expression tree.  
-'''
-
-from typing import Tuple
 from lexems import *
 
 PREFIX_KEYWORDS = [
@@ -23,6 +15,7 @@ PREFIX_KEYWORDS = [
     Return, 
     Continue, 
     Del, 
+    From, 
     Import, 
     Raise, 
 ]
@@ -57,7 +50,9 @@ OPERATION_PRECEDENCE = (
 class AssignCmd: pass
 class ExpressionCmd: pass
 
-def expect(lexem, *LexemTypes) -> None:
+def expect(lexem, LexemTypes):
+    if type(LexemTypes) is not tuple:
+        LexemTypes = (LexemTypes, )
     if type(lexem) not in LexemTypes:
         raise SyntaxError(
             f'''Expecting {
@@ -66,83 +61,105 @@ def expect(lexem, *LexemTypes) -> None:
         )
 
 class CmdTree(list):
-    def __init__(self) -> None:
+    def __init__(self):
         super().__init__()
         self.indent_level = None
         self.type = None    # *PREFIX_KEYWORDS | AssignCmd | ExpressionCmd
 
-    def parse(self, lexer) -> None:
-        lexem = next(lexer)
-        expect(lexem, Indentation)
-        self.indent_level = lexem.value
-        lexem = next(lexer)
-        if type(lexem) in PREFIX_KEYWORDS:
-            self.type = type(lexem)
-            if type(lexem) in (If, Elif, While, Except):
-                expressionTree, last_lexem = parseExpression(lexer)
-                self.append(expressionTree)
-                expect(last_lexem, Column)
-                expect(next(lexer), EoL)
-            elif type(lexem) is For:
-                expressionTree, last_lexem = parseExpression(lexer)
-                self.append(expressionTree)
-                expect(last_lexem, In)
-                expressionTree, last_lexem = parseExpression(lexer)
-                self.append(expressionTree)
-                expect(last_lexem, Column)
-                expect(next(lexer), EoL)
-            elif type(lexem) in (Else, Try, Finally):
-                expect(next(lexer), Column)
-                expect(next(lexer), EoL)
-            elif type(lexem) is Def:
-                lexem = next(lexer)
-                expect(lexem, Identifier)
-                self.append(lexem)
-                expect(next(lexer), LParen)
-                while True:
-                    lexem = next(lexer)
-                    if type(lexem) is RParen:
-                        break
-                    expect(lexem, Identifier, RParen)
-                    self.append(lexem)
-                expect(next(lexer), Column)
-                expect(next(lexer), EoL)
-            elif type(lexem) is Class:
-                lexem = next(lexer)
-                expect(lexem, Identifier)
-                self.append(lexem)
-                lexem = next(lexer)
-                if type(lexem) is LParen:
+    def parse(self, lexer):
+        while True:
+            lexem = next(lexer)
+            expect(lexem, Indentation)
+            self.indent_level = lexem.value
+            lexem = next(lexer)
+            if type(lexem) in PREFIX_KEYWORDS:
+                self.type = type(lexem)
+                if type(lexem) in (If, Elif, While, Except):
                     expressionTree, last_lexem = parseExpression(lexer)
                     self.append(expressionTree)
-                    expect(last_lexem, RParen)
-                    expect(lexem, Column)
-                else:
-                    expect(lexem, Column, LParen)
-                expect(next(lexer), EoL)
-            elif type(lexem) is Import:
-                lexem = next(lexer)
-                expect(lexem, Identifier)
-                self.append(lexem)
-                expect(next(lexer), EoL)
-            elif type(lexem) in (Del, Raise):
-                expressionTree, last_lexem = parseExpression(lexer)
-                self.append(expressionTree)
-                expect(last_lexem, EoL)
-            elif type(lexem) in (Pass, Break, Return, Continue):
-                expect(next(lexer), EoL)
-        else:
-            expressionTree, last_lexem = parseExpression(lexer)
-            self.append(expressionTree)
-            if type(last_lexem) is Assign:
-                self.type = AssignCmd
-                expressionTree, last_lexem = parseExpression(lexer)
-                self.append(expressionTree)
-                expect(last_lexem, EoL)
-            elif type(last_lexem) is EoL:
-                self.type = ExpressionCmd
+                    expect(last_lexem, Column)
+                    expect(next(lexer), EoL)
+                elif type(lexem) is For:
+                    expressionTree, last_lexem = parseExpression(lexer)
+                    self.append(expressionTree)
+                    expect(last_lexem, In)
+                    expressionTree, last_lexem = parseExpression(lexer)
+                    self.append(expressionTree)
+                    expect(last_lexem, Column)
+                    expect(next(lexer), EoL)
+                elif type(lexem) in (Else, Try, Finally):
+                    expect(next(lexer), Column)
+                    expect(next(lexer), EoL)
+                elif type(lexem) is Def:
+                    lexem = next(lexer)
+                    expect(lexem, Identifier)
+                    self.append(lexem)
+                    expect(next(lexer), LParen)
+                    while True:
+                        lexem = next(lexer)
+                        expect(lexem, (Identifier, RParen))
+                        if type(lexem) is RParen:
+                            break
+                        self.append(lexem)
+                        lexem = next(lexer)
+                        expect(lexem, (Comma, RParen))
+                        if type(lexem) is RParen:
+                            break
+                    expect(next(lexer), Column)
+                    expect(next(lexer), EoL)
+                elif type(lexem) is Class:
+                    lexem = next(lexer)
+                    expect(lexem, Identifier)
+                    self.append(lexem)
+                    lexem = next(lexer)
+                    expect(lexem, (Column, LParen))
+                    if type(lexem) is LParen:
+                        expressionTree, last_lexem = parseExpression(lexer)
+                        self.append(expressionTree)
+                        expect(last_lexem, RParen)
+                        expect(next(lexer), Column)
+                    lexem = next(lexer)
+                    expect(lexem, (EoL, Pass))
+                    if type(lexem) is Pass:
+                        expect(next(lexer), EoL)
+                elif type(lexem) is Import:
+                    lexem = next(lexer)
+                    expect(lexem, Identifier)
+                    self.append(lexem)
+                    expect(next(lexer), EoL)
+                elif type(lexem) is From:
+                    expressionTree, last_lexem = parseExpression(lexer)
+                    self.append(expressionTree)
+                    expect(last_lexem, Import)
+                    while True:
+                        lexem = next(lexer)
+                        expect(lexem, (Identifier, Times))
+                        self.append(lexem)
+                        lexem = next(lexer)
+                        expect(lexem, (Comma, EoL))
+                        if type(lexem) is EoL:
+                            break
+                elif type(lexem) in (Del, Raise):
+                    expressionTree, last_lexem = parseExpression(lexer)
+                    self.append(expressionTree)
+                    expect(last_lexem, EoL)
+                elif type(lexem) in (Pass, Break, Return, Continue):
+                    expect(next(lexer), EoL)
+            elif type(lexem) is EoL:
+                continue
             else:
-                expect(last_lexem, Assign, EoL)
+                expressionTree, last_lexem = parseExpression(lexer, lexem)
+                self.append(expressionTree)
+                if type(last_lexem) is Assign:
+                    self.type = AssignCmd
+                    expressionTree, last_lexem = parseExpression(lexer)
+                    self.append(expressionTree)
+                    expect(last_lexem, EoL)
+                elif type(last_lexem) is EoL:
+                    self.type = ExpressionCmd
+                else:
+                    expect(last_lexem, (Assign, EoL))
+            break
 
 def CmdsParser(lexer):
     while True:
@@ -176,8 +193,6 @@ class ExpressionTree(list):
 def parseDisplay(
     content, content_types, is_dict = False, 
     delimiter = Comma, 
-) -> Tuple(
-    ExpressionTree, bool
 ):
     tree = ExpressionTree(None, [])
     def parseOneElement(sub_content, sub_content_types):
@@ -213,89 +228,108 @@ def parseDisplay(
         parseOneElement(content, content_types)
     return tree, trialing_delimiter
 
-def parseExpression(lexer) -> Tuple(ExpressionTree, Lexem):
+def parseExpression(lexer, first_lexem = None):
     buffer = []
     while True:
-        lexem = next(lexer)
+        interupted = False
+        buffer_types = [type(x) for x in buffer]
+        if first_lexem is None:
+            lexem = next(lexer)
+        else:
+            lexem = first_lexem
+            first_lexem = None
         if type(lexem) in (Num, String, Boolean, None, Identifier):
             buffer.append(ExpressionTree(Terminal, [lexem]))
         elif type(lexem) in (RParen, RBracket, RSquareBracket):
             try:
-                content_len = buffer[::-1].index(lexem.MATCH)
-            except ValueError:
-                raise SyntaxError(f'Unmatched {lexem}')
-            if content_len == 0:
-                content = []
-            else:
-                content = buffer[-content_len:]
-            buffer = buffer[:-content_len - 1]
-            content_types = [type(x) for x in content]
-            if type(lexem) is RParen:
-                theTuple, trialing_comma = parseDisplay(
-                    content, content_types, 
+                content_len = buffer_types[::-1].index(
+                    lexem.MATCH
                 )
-                if len(theTuple) == 1 and not trialing_comma:
-                    theTuple.type = Parened
-                    theParened = theTuple
-                    buffer.append(theParened)
+            except ValueError:
+                interupted = True
+            else:
+                if content_len == 0:
+                    content = []
                 else:
-                    theTuple.type = TupleDisplay
-                    if type(buffer[-1]) is ExpressionTree:
-                        callee = buffer.pop(-1)
-                        buffer.append(ExpressionTree(
-                            FunctionCall, [callee, theTuple], 
-                        ))
-                    else:
-                        buffer.append(theTuple)
-            elif type(lexem) is RBracket:
-                if Column in content_types:
-                    theDict, _ = parseDisplay(
-                        content, content_types, is_dict=True, 
-                    )
-                    theDict.type = DictDisplay
-                    buffer.append(theDict)
-                else:
-                    theSet, _ = parseDisplay(
+                    content = buffer[-content_len:]
+                buffer = buffer[:-content_len - 1]
+                content_types = [type(x) for x in content]
+                if type(lexem) is RParen:
+                    theTuple, trialing_comma = parseDisplay(
                         content, content_types, 
                     )
-                    theSet.type = SetDisplay
-                    if len(theSet) == 0:
-                        theSet.type = DictDisplay
-                        theDict = theSet
-                    buffer.append(theDict)
-            elif type(lexem) is RSquareBracket:
-                if type(buffer[-1]) is ExpressionTree:
-                    indexable = buffer.pop(-1)
+                    if len(theTuple) == 1 and not trialing_comma:
+                        theTuple.type = Parened
+                        theParened = theTuple
+                        buffer.append(theParened)
+                    else:
+                        theTuple.type = TupleDisplay
+                        if buffer and type(buffer[-1]) is ExpressionTree:
+                            callee = buffer.pop(-1)
+                            buffer.append(ExpressionTree(
+                                FunctionCall, [callee, theTuple], 
+                            ))
+                        else:
+                            buffer.append(theTuple)
+                elif type(lexem) is RBracket:
                     if Column in content_types:
-                        tree = ExpressionTree(
-                            Slicing, [indexable]
+                        theDict, _ = parseDisplay(
+                            content, content_types, is_dict=True, 
                         )
-                        theSlice, trialing_column = parseDisplay(
-                            content, content_types, 
-                            delimiter=Column
-                        )
-                        if trialing_column:
-                            raise SyntaxError(
-                                f'Trialing column not accepted in slicing starting with {lexem}. '
-                            )
-                        if len(theSlice) == 2:
-                            theSlice.append(1)
-                        tree.extend(theSlice)
-                        buffer.append(tree)
+                        theDict.type = DictDisplay
+                        buffer.append(theDict)
                     else:
-                        ExpressionTree(Indexing, [
-                            indexable, 
-                            reduce(content, content_types), 
-                        ])
-                else:
-                    theList, _ = parseDisplay(
-                        content, content_types, 
-                    )
-                    theList.type = ListDisplay
-                    buffer.append(theList)
+                        theSet, _ = parseDisplay(
+                            content, content_types, 
+                        )
+                        theSet.type = SetDisplay
+                        if len(theSet) == 0:
+                            theSet.type = DictDisplay
+                            theDict = theSet
+                        buffer.append(theDict)
+                elif type(lexem) is RSquareBracket:
+                    if buffer and type(buffer[-1]) is ExpressionTree:
+                        indexable = buffer.pop(-1)
+                        if Column in content_types:
+                            tree = ExpressionTree(
+                                Slicing, [indexable]
+                            )
+                            theSlice, trialing_column = parseDisplay(
+                                content, content_types, 
+                                delimiter=Column
+                            )
+                            if trialing_column:
+                                raise SyntaxError(
+                                    f'Trialing column not accepted in slicing starting with {lexem}. '
+                                )
+                            if len(theSlice) == 2:
+                                theSlice.append(1)
+                            tree.extend(theSlice)
+                            buffer.append(tree)
+                        else:
+                            ExpressionTree(Indexing, [
+                                indexable, 
+                                reduce(content, content_types), 
+                            ])
+                    else:
+                        theList, _ = parseDisplay(
+                            content, content_types, 
+                        )
+                        theList.type = ListDisplay
+                        buffer.append(theList)
+        elif type(lexem) in (
+            LParen, LSquareBracket, LBracket, Comma, Column, 
+            Or, And, Not, LessThanOrEqual, LessThan, 
+            GreaterThanOrEqual, GreaterThan, NotEqual, 
+            Equal, In, Is, Plus, Minus, Times, Divide, 
+            ModDiv, ToPowerOf, Dot, 
+        ):
+            buffer.append(lexem)
         else:
+            interupted = True
+        if interupted:
             unclosed = {LParen, LSquareBracket, LBracket}.intersection(
-                {type(x) for x in buffer}
+                buffer_types
             )
             if unclosed:
                 if type(lexem) is EoL:
@@ -367,3 +401,12 @@ def reduce(content, content_types):
     if len(content) > 1:
         raise SyntaxError(f'{len(content)} expressions concatenated. ')
     return content[0]
+
+if __name__ == '__main__':
+    # Self-parsing test
+    from pprint import pprint
+    from lexer import Lexer, LookAheadIO
+    with open(__file__, 'r') as f:
+        lexer = Lexer(LookAheadIO(f))
+        for cmdTree in CmdsParser(lexer):
+            pprint(cmdTree)
