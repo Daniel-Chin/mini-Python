@@ -22,6 +22,7 @@ class ArguableLexem(Lexem):
         return f'''<Lexem {
             type(self).__name__
         }({repr(self.value)}) @ line {self.line_number}>'''
+
 class Identifier(ArguableLexem): pass
 class Num(ArguableLexem): pass
 class String(ArguableLexem): pass

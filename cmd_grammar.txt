@@ -1,0 +1,49 @@
+Remarks:
+  Dump the concept of "slot". 
+    A slot can contain expressions:
+      a[3].b[1] = 5
+    A slot is always an expression. 
+    So, why not disregard the difference at parse time, and deal with it at run time? 
+
+The sequence I remember them:
+  expression
+  expression Assign expression
+  Pass
+  If expression:
+  Elif expression:
+  Else:
+  While expression:
+  Break
+  Def Identifier(Identifier...):
+  Return
+  Class Identifier(expression):
+  Continue
+  Del expression
+  Try:
+  Except expression:
+  Finally:
+  Import Identifier...
+  Raise expression
+
+Classifying:
+  needs indent:
+    If expression:
+    Elif expression:
+    While expression:
+    Except expression:
+    Else:
+    Try:
+    Finally:
+    Def Identifier(Identifier...):
+    Class Identifier(expression):
+  elif starting with Keywords:
+    Import Identifier...
+    Del expression
+    Raise expression
+    Pass
+    Break
+    Return
+    Continue
+  else:
+    expression
+    expression Assign expression
