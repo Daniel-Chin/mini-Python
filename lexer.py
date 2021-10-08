@@ -31,31 +31,31 @@ SYMBOLS_PRIORITY = (
     (',' , Comma             ), 
 )
 
-KEYWORDS = [
-    And     , 
-    Break   , 
-    Class   , 
-    Continue, 
-    Def     , 
-    Del     , 
-    Elif    , 
-    Else    , 
-    Except  , 
-    Finally , 
-    For     , 
-    If      , 
-    Import  , 
-    In      , 
-    Is      , 
-    NONE    , 
-    Not     , 
-    Or      , 
-    Pass    , 
-    Raise   , 
-    Return  , 
-    Try     , 
-    While   , 
-]
+KEYWORDS = {
+    'and'     : And     , 
+    'break'   : Break   , 
+    'class'   : Class   , 
+    'continue': Continue, 
+    'def'     : Def     , 
+    'del'     : Del     , 
+    'elif'    : Elif    , 
+    'else'    : Else    , 
+    'except'  : Except  , 
+    'finally' : Finally , 
+    'for'     : For     , 
+    'if'      : If      , 
+    'import'  : Import  , 
+    'in'      : In      , 
+    'is'      : Is      , 
+    'None'    : NONE    , 
+    'not'     : Not     , 
+    'or'      : Or      , 
+    'pass'    : Pass    , 
+    'raise'   : Raise   , 
+    'return'  : Return  , 
+    'try'     : Try     , 
+    'while'   : While   , 
+}
 
 class CarriageReturnDetected(Exception): 
     '''
@@ -130,11 +130,9 @@ def Lexer(lAIO : LookAheadIO):
                 yield Boolean(True).lineNumber(lAIO.line_no)
             if word == 'False':
                 yield Boolean(False).lineNumber(lAIO.line_no)
-            for Keyword in KEYWORDS:
-                if Keyword.match == word:
-                    yield Keyword().lineNumber(lAIO.line_no)
-                    break
-            else:
+            try:
+                yield KEYWORDS[word]().lineNumber(lAIO.line_no)
+            except KeyError:
                 yield Identifier(word).lineNumber(lAIO.line_no)
         elif char in NUM_BODY:
             n = expectNum(lAIO, char)

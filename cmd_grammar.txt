@@ -37,7 +37,7 @@ Classifying:
     Def Identifier(Identifier...):
     Class Identifier(expression):
   elif starting with Keywords:
-    Import Identifier...
+    Import Identifier
     Del expression
     Raise expression
     Pass

@@ -28,76 +28,89 @@ PREFIX_KEYWORDS = [
 class AssignCmd: pass
 class ExpressionCmd: pass
 
-class CmdTree(list):
-    KNOW_NOTHING = 'KNOW_NOTHING'
-    NOT_KEYWORD = 'NOT_KEYWORD'
-    ALREADY_TYPED = 'ALREADY_TYPED'
+def expect(lexem, *LexemTypes) -> None:
+    if type(lexem) not in LexemTypes:
+        raise SyntaxError(
+            f'''Expecting {
+                " or ".join([x.__name__ for x in LexemTypes])
+            }, but parser encountered {lexem}.'''
+        )
 
+class CmdTree(list):
     def __init__(self) -> None:
+        super().__init__()
         self.indent_level = None
         self.type = None    # *PREFIX_KEYWORDS | AssignCmd | ExpressionCmd
-        self._type = self.KNOW_NOTHING   # KNOW_NOTHING | NOT_KEYWORD | ALREADY_TYPED
-        self.expressionParser = None
-    
-    def push(self, lexem) -> bool:
-        if self._type is self.KNOW_NOTHING:
-            if type(lexem) in PREFIX_KEYWORDS:
-                self.type = type(lexem)
-                self._type = self.ALREADY_TYPED
-            else:
-                self._type = self.NOT_KEYWORD
-                self.expressionParser = ExpressionParser()
-                self.expressionParser.push(lexem)
-            return False
-        elif self._type is self.NOT_KEYWORD:
-            result = self.expressionParser.push(lexem)
-            if result is None:
-                return False
-            elif result:
-                # last lexem is the end of 1st expression
-                self.append(self.expressionParser.root)
-                if lexem is Assign:
-                    self.type = AssignCmd
-                    self._type = self.ALREADY_TYPED
-                    self.expressionParser = ExpressionParser()
-                    return False
-                elif lexem is EoL:
-                    self.type = ExpressionCmd
-                    self._type = self.ALREADY_TYPED
-                    return True
-                else:
-                    raise SyntaxError(
-                        f'An expression should have finished by now, but parser encountered {lexem}.'
-                    )
-            else:
-                raise SyntaxError(
-                    f'Failed to parse an expression at {lexem}.'
-                )
-        elif self.type is AssignCmd:
-            result = self.expressionParser.push(lexem)
-            if result is None:
-                return False
-            elif result:
-                # last lexem is the end of 2nd expression
-                self.append(self.expressionParser.root)
-                if lexem is EoL:
-                    return True
-                else:
-                    raise SyntaxError(
-                        f'An expression should have finished by now, but parser encountered {lexem}.'
-                    )
-            else:
-                raise SyntaxError(
-                    f'Failed to parse an expression at {lexem}'
-                )
+
+    def parse(self, lexer) -> None:
+        lexem = next(lexer)
+        if type(lexem) is Indentation:
+            self.indent_level = lexem.value
+            lexem = next(lexer)
         else:
-            # Keyword prefix
-            
+            self.indent_level = 0
+        if type(lexem) in PREFIX_KEYWORDS:
+            self.type = type(lexem)
+            if type(lexem) in (If, Elif, While, Except):
+                expressionTree, last_lexem = parseExpression(lexer)
+                self.append(expressionTree)
+                expect(last_lexem, Column)
+                expect(next(lexer), EoL)
+            elif type(lexem) in (Else, Try, Finally):
+                expect(next(lexer), Column)
+                expect(next(lexer), EoL)
+            elif type(lexem) is Def:
+                lexem = next(lexer)
+                expect(lexem, Identifier)
+                self.append(lexem)
+                expect(next(lexer), LParen)
+                while True:
+                    lexem = next(lexer)
+                    if type(lexem) is RParen:
+                        break
+                    expect(lexem, Identifier, RParen)
+                    self.append(lexem)
+                expect(next(lexer), Column)
+                expect(next(lexer), EoL)
+            elif type(lexem) is Class:
+                lexem = next(lexer)
+                expect(lexem, Identifier)
+                self.append(lexem)
+                lexem = next(lexer)
+                if type(lexem) is LParen:
+                    expressionTree, last_lexem = parseExpression(lexer)
+                    self.append(expressionTree)
+                    expect(last_lexem, RParen)
+                    expect(lexem, Column)
+                else:
+                    expect(lexem, Column, LParen)
+                expect(next(lexer), EoL)
+            elif type(lexem) is Import:
+                lexem = next(lexer)
+                expect(lexem, Identifier)
+                self.append(lexem)
+                expect(next(lexer), EoL)
+            elif type(lexem) in (Del, Raise):
+                expressionTree, last_lexem = parseExpression(lexer)
+                self.append(expressionTree)
+                expect(last_lexem, EoL)
+            elif type(lexem) in (Pass, Break, Return, Continue):
+                expect(next(lexer), EoL)
+        else:
+            expressionTree, last_lexem = parseExpression(lexer)
+            self.append(expressionTree)
+            if type(last_lexem) is Assign:
+                self.type = AssignCmd
+                expressionTree, last_lexem = parseExpression(lexer)
+                self.append(expressionTree)
+                expect(last_lexem, EoL)
+            elif type(last_lexem) is EoL:
+                self.type = ExpressionCmd
+            else:
+                expect(last_lexem, Assign, EoL)
 
 def CmdsParser(lexer):
-    cmdTree = CmdTree()
-    for lexem in lexer:
-        finished = cmdTree.push(lexem)
-        if finished:
-            yield cmdTree
-            cmdTree = CmdTree()
+    while True:
+        cmdTree = CmdTree()
+        cmdTree.parse(lexer)
+        yield cmdTree

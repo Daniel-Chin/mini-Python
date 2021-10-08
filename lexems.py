@@ -52,26 +52,26 @@ class Column            (Lexem) : pass
 class Dot               (Lexem) : pass
 class Comma             (Lexem) : pass
 
-class And     (Lexem) : match = 'and'
-class Break   (Lexem) : match = 'break'
-class Class   (Lexem) : match = 'class'
-class Continue(Lexem) : match = 'continue'
-class Def     (Lexem) : match = 'def'
-class Del     (Lexem) : match = 'del'
-class Elif    (Lexem) : match = 'elif'
-class Else    (Lexem) : match = 'else'
-class Except  (Lexem) : match = 'except'
-class Finally (Lexem) : match = 'finally'
-class For     (Lexem) : match = 'for'
-class If      (Lexem) : match = 'if'
-class Import  (Lexem) : match = 'import'
-class In      (Lexem) : match = 'in'
-class Is      (Lexem) : match = 'is'
-class NONE    (Lexem) : match = 'None'
-class Not     (Lexem) : match = 'not'
-class Or      (Lexem) : match = 'or'
-class Pass    (Lexem) : match = 'pass'
-class Raise   (Lexem) : match = 'raise'
-class Return  (Lexem) : match = 'return'
-class Try     (Lexem) : match = 'try'
-class While   (Lexem) : match = 'while'
+class And     (Lexem) : pass
+class Break   (Lexem) : pass
+class Class   (Lexem) : pass
+class Continue(Lexem) : pass
+class Def     (Lexem) : pass
+class Del     (Lexem) : pass
+class Elif    (Lexem) : pass
+class Else    (Lexem) : pass
+class Except  (Lexem) : pass
+class Finally (Lexem) : pass
+class For     (Lexem) : pass
+class If      (Lexem) : pass
+class Import  (Lexem) : pass
+class In      (Lexem) : pass
+class Is      (Lexem) : pass
+class NONE    (Lexem) : pass
+class Not     (Lexem) : pass
+class Or      (Lexem) : pass
+class Pass    (Lexem) : pass
+class Raise   (Lexem) : pass
+class Return  (Lexem) : pass
+class Try     (Lexem) : pass
+class While   (Lexem) : pass
