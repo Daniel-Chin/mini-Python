@@ -1,0 +1,28 @@
+expr:
+  Num
+  String
+  True False None
+  Identifier
+
+  ( expr )
+  { expr : expr , ... }
+  [ expr , ... ]
+  ( expr , ... )
+  expr [ expr ]
+  expr ( expr , ... )
+  ^^^^ this has to be as small as possible. Seems to be exactly immediate 1 expr at parse time. 
+
+  expr +-*/**% in is == < > <= >= != and or . expr
+  not - expr
+
+or
+and
+not expr
+< <= > >=
+!= ==
+in, not in, is, is not
++ -
+* / // %
+- expr
+**
+.

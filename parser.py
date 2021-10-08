@@ -5,6 +5,7 @@ A sequence of cmd trees are parsed into an MST.
 An expression (can be multiline) is parsed into an expression tree.  
 '''
 
+from typing import Tuple
 from lexems import *
 
 PREFIX_KEYWORDS = [
@@ -123,3 +124,20 @@ def CmdsParser(lexer):
         cmdTree = CmdTree()
         cmdTree.parse(lexer)
         yield cmdTree
+
+class ExpressionTree(list):
+    def __init__(self):
+        super().__init__()
+        self.type = None
+
+def parseExpression(lexer) -> Tuple(ExpressionTree, Lexem):
+    buffer = []
+    while True:
+        lexem = next(lexer)
+        if type(lexem) in (Num, String, Boolean, None, Identifier):
+            buffer.append(ExpressionTree([lexem]))
+        elif type(lexem) in (RParen, RBracket, RSquareBracket):
+            try:
+                content_len = buffer[::-1].index(lexem.MATCH)
+            except ValueError:
+                raise SyntaxError(f'Unmatched {lexem}')

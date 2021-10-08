@@ -21,7 +21,7 @@ class ArguableLexem(Lexem):
     def __repr__(self):
         return f'''<Lexem {
             type(self).__name__
-        }({repr(self.value)}) @ line {self.line_number}>'''
+        }({self.value}) @ line {self.line_number}>'''
 
 class Identifier(ArguableLexem): pass
 class Num(ArguableLexem): pass
@@ -43,11 +43,11 @@ class LessThen          (Lexem) : pass
 class GreaterThen       (Lexem) : pass
 class Assign            (Lexem) : pass
 class LParen            (Lexem) : pass
-class RParen            (Lexem) : pass
+class RParen            (Lexem) : MATCH = LParen
 class LBracket          (Lexem) : pass
-class RBracket          (Lexem) : pass
+class RBracket          (Lexem) : MATCH = LBracket
 class LSquareBracket    (Lexem) : pass
-class RSquareBracket    (Lexem) : pass
+class RSquareBracket    (Lexem) : MATCH = LSquareBracket
 class Column            (Lexem) : pass
 class Dot               (Lexem) : pass
 class Comma             (Lexem) : pass
