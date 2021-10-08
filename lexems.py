@@ -5,6 +5,11 @@ class Lexem:
     def lineNumber(self, x):
         self.line_number = x
         return self
+    
+    def __repr__(self):
+        return f'''<Lexem {
+            type(self).__name__
+        } @ line {self.line_number}>'''
 
 class EoL(Lexem): pass
 
@@ -12,6 +17,11 @@ class ArguableLexem(Lexem):
     def __init__(self, value):
         super().__init__()
         self.value = value
+    
+    def __repr__(self):
+        return f'''<Lexem {
+            type(self).__name__
+        }({repr(self.value)}) @ line {self.line_number}>'''
 class Identifier(ArguableLexem): pass
 class Num(ArguableLexem): pass
 class String(ArguableLexem): pass
@@ -33,6 +43,8 @@ class GreaterThen       (Lexem) : pass
 class Assign            (Lexem) : pass
 class LParen            (Lexem) : pass
 class RParen            (Lexem) : pass
+class LBracket          (Lexem) : pass
+class RBracket          (Lexem) : pass
 class LSquareBracket    (Lexem) : pass
 class RSquareBracket    (Lexem) : pass
 class Column            (Lexem) : pass

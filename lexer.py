@@ -22,6 +22,8 @@ SYMBOLS_PRIORITY = (
     ('=' , Assign            ), 
     ('(' , LParen            ), 
     (')' , RParen            ), 
+    ('{' , LBracket          ), 
+    ('}' , RBracket          ), 
     ('[' , LSquareBracket    ), 
     (']' , RSquareBracket    ), 
     (':' , Column            ), 
@@ -68,20 +70,21 @@ class LookAheadIO:
     def __init__(self, file):
         self.file : TextIOWrapper = file
         self.buffer = []
-        self.line_no = 0
+        self.line_no = 1
     
-    def read(self, n_char):
+    def read(self, n_char, commit = True):
         buffer_requested = min(len(self.buffer), n_char)
         result = ''.join(self.buffer[:buffer_requested])
         self.buffer = self.buffer[buffer_requested:]
         need_more = n_char - buffer_requested
         if need_more:
             result += self.file.read(need_more)
-        self.line_no += result.count('\n')
+        if commit:
+            self.line_no += result.count('\n')
         return result
     
     def lookAhead(self, n_char):
-        result = self.read(n_char)
+        result = self.read(n_char, commit = False)
         self.buffer = [*result] + self.buffer
         return result
     
@@ -97,8 +100,9 @@ def Lexer(lAIO : LookAheadIO):
     indent_using = []
     indentation = expectIndentation(lAIO, indent_using)
     if indentation is not None:
-        yield indentation.lineNumber(lAIO.line_no)
+        yield indentation.lineNumber(1)
     while True:
+        prev_line_no = lAIO.line_no
         char = lAIO.read(1)
         if char == '':
             return
@@ -111,7 +115,7 @@ def Lexer(lAIO : LookAheadIO):
                 # it is ok to end a file on an unfinished comment
                 pass    
         elif char == '\n':
-            yield EoL().lineNumber(lAIO.line_no)
+            yield EoL().lineNumber(prev_line_no)
             indentation = expectIndentation(lAIO, indent_using)
             if indentation is not None:
                 yield indentation.lineNumber(lAIO.line_no)
@@ -134,14 +138,17 @@ def Lexer(lAIO : LookAheadIO):
                 yield Identifier(word).lineNumber(lAIO.line_no)
         elif char in NUM_BODY:
             n = expectNum(lAIO, char)
-            yield Num(n).lineNumber(lAIO.line_no)
+            if n == '.':
+                yield Dot().lineNumber(lAIO.line_no)
+            else:
+                yield Num(n).lineNumber(lAIO.line_no)
         else:
-            for symbol, lexem in SYMBOLS_PRIORITY:
+            for symbol, Lexem in SYMBOLS_PRIORITY:
                 need_more = len(symbol) - 1
                 read = char + lAIO.lookAhead(need_more)
                 if read == symbol:
                     lAIO.read(need_more)
-                    yield lexem().lineNumber(lAIO.line_no)
+                    yield Lexem().lineNumber(lAIO.line_no)
                     break
             else:
                 raise LexingNoMatch(repr(
@@ -208,7 +215,7 @@ def expectString(lAIO : LookAheadIO, first_char):
                 )
             elif not escaped and char == first_char:
                 break
-            elif char == '\n':
+            elif not escaped and char == '\n':
                 raise ParseStringFailed(
                     'Line ended when parsing a single-line string'
                 )
@@ -241,6 +248,15 @@ def expectNum(lAIO : LookAheadIO, first_char):
     if n_dots == 0:
         return int(str_num)
     elif n_dots == 1:
-        return float(str_num)
+        if str_num == '.':
+            return '.'
+        else:
+            return float(str_num)
     else:
         raise SyntaxError('More than one "." in a number')
+
+if __name__ == '__main__':
+    with open(__file__, 'r') as f:
+        lexer = Lexer(LookAheadIO(f))
+        for lexem in lexer:
+            print(lexem)
