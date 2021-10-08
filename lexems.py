@@ -23,11 +23,11 @@ class ArguableLexem(Lexem):
             type(self).__name__
         }({self.value}) @ line {self.line_number}>'''
 
-class Identifier(ArguableLexem): pass
-class Num(ArguableLexem): pass
-class String(ArguableLexem): pass
-class Boolean(ArguableLexem): pass
-class Indentation(ArguableLexem): pass
+class Identifier  (ArguableLexem): pass
+class Num         (ArguableLexem): pass
+class String      (ArguableLexem): pass
+class Boolean     (ArguableLexem): pass
+class Indentation (ArguableLexem): pass
 
 class Equal             (Lexem) : pass
 class NotEqual          (Lexem) : pass

@@ -5,12 +5,16 @@ expr:
   Identifier
 
   ( expr )
-  { expr : expr , ... }
-  [ expr , ... ]
   ( expr , ... )
-  expr [ expr ]
   expr ( expr , ... )
-  ^^^^ this has to be as small as possible. Seems to be exactly immediate 1 expr at parse time. 
+  { expr : expr , ... }
+  { expr , ... }
+  [ expr , ... ]
+  expr [ expr ]
+  expr [ expr : ... ]
+  ^^^^ this has to be as small as possible. 
+       Seems to be exactly immediate 1 expr at parse time. 
+       (High precedence)
 
   expr +-*/**% in is == < > <= >= != and or . expr
   not - expr
