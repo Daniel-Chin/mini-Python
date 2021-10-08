@@ -121,7 +121,7 @@ def Lexer(lAIO : LookAheadIO):
             s = expectString(lAIO, char)
             yield String(s).lineNumber(lAIO.line_no)
         elif char in IDENTIFIER_START:
-            word = char + expectWord(lAIO)
+            word = expectWord(lAIO, char)
             if word == 'True':
                 yield Boolean(True).lineNumber(lAIO.line_no)
             if word == 'False':
@@ -216,8 +216,8 @@ def expectString(lAIO : LookAheadIO, first_char):
                 buffer.append(char)
     return ''.join(buffer)
 
-def expectWord(lAIO : LookAheadIO):
-    buffer = []
+def expectWord(lAIO : LookAheadIO, first_char):
+    buffer = [first_char]
     while True:
         char = lAIO.lookAhead(1)
         if char in IDENTIFIER_BODY:
@@ -228,7 +228,7 @@ def expectWord(lAIO : LookAheadIO):
     return ''.join(buffer)
 
 def expectNum(lAIO : LookAheadIO, first_char):
-    buffer = []
+    buffer = [first_char]
     while True:
         char = lAIO.lookAhead(1)
         if char in NUM_BODY:
