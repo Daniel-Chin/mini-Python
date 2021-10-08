@@ -256,6 +256,7 @@ def expectNum(lAIO : LookAheadIO, first_char):
         raise SyntaxError('More than one "." in a number')
 
 if __name__ == '__main__':
+    # Self-lexing test
     with open(__file__, 'r') as f:
         lexer = Lexer(LookAheadIO(f))
         for lexem in lexer:
