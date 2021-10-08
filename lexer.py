@@ -99,8 +99,7 @@ class LookAheadIO:
 def Lexer(lAIO : LookAheadIO):
     indent_using = []
     indentation = expectIndentation(lAIO, indent_using)
-    if indentation is not None:
-        yield indentation.lineNumber(1)
+    yield indentation.lineNumber(1)
     while True:
         prev_line_no = lAIO.line_no
         char = lAIO.read(1)
@@ -117,8 +116,7 @@ def Lexer(lAIO : LookAheadIO):
         elif char == '\n':
             yield EoL().lineNumber(prev_line_no)
             indentation = expectIndentation(lAIO, indent_using)
-            if indentation is not None:
-                yield indentation.lineNumber(lAIO.line_no)
+            yield indentation.lineNumber(lAIO.line_no)
         elif char == '\r':
             raise CarriageReturnDetected
         elif char in ("'", '"'):
@@ -163,8 +161,7 @@ def expectIndentation(lAIO : LookAheadIO, indent_using : list):
                 raise MixedTabsAndSpacesError
         else:
             indent_using.append(char)
-    if acc:
-        return Indentation(acc)
+    return Indentation(acc)
 
 def expectChar(lAIO : LookAheadIO):
     char = lAIO.read(1)

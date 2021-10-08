@@ -5,7 +5,7 @@ A sequence of cmd trees are parsed into an MST.
 An expression (can be multiline) is parsed into an expression tree.  
 '''
 
-from typing import Tuple, List
+from typing import Tuple
 from lexems import *
 
 PREFIX_KEYWORDS = [
@@ -73,11 +73,9 @@ class CmdTree(list):
 
     def parse(self, lexer) -> None:
         lexem = next(lexer)
-        if type(lexem) is Indentation:
-            self.indent_level = lexem.value
-            lexem = next(lexer)
-        else:
-            self.indent_level = 0
+        expect(lexem, Indentation)
+        self.indent_level = lexem.value
+        lexem = next(lexer)
         if type(lexem) in PREFIX_KEYWORDS:
             self.type = type(lexem)
             if type(lexem) in (If, Elif, While, Except):
@@ -221,8 +219,6 @@ def parseExpression(lexer) -> Tuple(ExpressionTree, Lexem):
         lexem = next(lexer)
         if type(lexem) in (Num, String, Boolean, None, Identifier):
             buffer.append(ExpressionTree(Terminal, [lexem]))
-        elif 1:
-            pass # other lexems
         elif type(lexem) in (RParen, RBracket, RSquareBracket):
             try:
                 content_len = buffer[::-1].index(lexem.MATCH)
@@ -298,8 +294,18 @@ def parseExpression(lexer) -> Tuple(ExpressionTree, Lexem):
                     theList.type = ListDisplay
                     buffer.append(theList)
         else:
-            # last lexem...
-            raise SyntaxError(f'When parsing an expression, encountered {lexem}.')
+            unclosed = {LParen, LSquareBracket, LBracket}.intersection(
+                {type(x) for x in buffer}
+            )
+            if unclosed:
+                if type(lexem) is EoL:
+                    expect(next(lexer), Indentation)
+                else:
+                    raise SyntaxError(
+                        f'Expression terminated by {lexem} but has unclosed {unclosed}.'
+                    )
+            else:
+                return reduce(buffer, [type(x) for x in buffer]), lexem
 
 def reduce(content, content_types):
     for i in range(len(content) - 1, -1, -1):
