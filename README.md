@@ -21,3 +21,4 @@ mini Python is a subset of Python. I wanna see if I can write a Python interpret
 - | ^ & << >> @ ~
 - await, ;=
 - 1 < 2 < 3
+- 4 // 2

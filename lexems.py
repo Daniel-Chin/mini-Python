@@ -39,8 +39,8 @@ class Minus             (Lexem) : pass
 class Times             (Lexem) : pass
 class Divide            (Lexem) : pass
 class ModDiv            (Lexem) : pass
-class LessThen          (Lexem) : pass
-class GreaterThen       (Lexem) : pass
+class LessThan          (Lexem) : pass
+class GreaterThan       (Lexem) : pass
 class Assign            (Lexem) : pass
 class LParen            (Lexem) : pass
 class RParen            (Lexem) : MATCH = LParen

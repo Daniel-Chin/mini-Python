@@ -27,6 +27,33 @@ PREFIX_KEYWORDS = [
     Raise, 
 ]
 
+class IsNot      (Lexem): pass
+class NotIn      (Lexem): pass
+class UnaryNegate(Lexem): pass
+OPERATION_PRECEDENCE = (
+    Dot, 
+    ToPowerOf, 
+    UnaryNegate, 
+    Times, 
+    Divide, 
+    ModDiv, 
+    Plus, 
+    Minus, 
+    IsNot, 
+    NotIn, 
+    Is, 
+    In, 
+    NotEqual, 
+    Equal, 
+    LessThanOrEqual, 
+    LessThan, 
+    GreaterThanOrEqual, 
+    GreaterThan, 
+    Not, 
+    And, 
+    Or, 
+)
+
 class AssignCmd: pass
 class ExpressionCmd: pass
 
@@ -146,6 +173,7 @@ class ExpressionTree(list):
     def __init__(self, _type, x = []):
         super().__init__(x)
         self.type = _type
+        self.operationLexem = None  # if type is Binary or Unary
 
 def parseDisplay(
     content, content_types, is_dict = False, 
@@ -161,11 +189,17 @@ def parseDisplay(
             except ValueError:
                 raise SyntaxError('Mixed set and dict.')
             element = ExpressionTree(KeyValuePair, [
-                reduce(sub_content[:column_i]), 
-                reduce(sub_content[column_i+1 :]), 
+                reduce(
+                    sub_content      [:column_i],
+                    sub_content_types[:column_i],
+                ), 
+                reduce(
+                    sub_content      [column_i+1 :], 
+                    sub_content_types[column_i+1 :], 
+                ), 
             ])
         else:
-            element = reduce(sub_content)
+            element = reduce(sub_content, sub_content_types)
         tree.append(element)
     while True:
         try:
@@ -187,6 +221,8 @@ def parseExpression(lexer) -> Tuple(ExpressionTree, Lexem):
         lexem = next(lexer)
         if type(lexem) in (Num, String, Boolean, None, Identifier):
             buffer.append(ExpressionTree(Terminal, [lexem]))
+        elif 1:
+            pass # other lexems
         elif type(lexem) in (RParen, RBracket, RSquareBracket):
             try:
                 content_len = buffer[::-1].index(lexem.MATCH)
@@ -253,7 +289,7 @@ def parseExpression(lexer) -> Tuple(ExpressionTree, Lexem):
                     else:
                         ExpressionTree(Indexing, [
                             indexable, 
-                            reduce(content), 
+                            reduce(content, content_types), 
                         ])
                 else:
                     theList, _ = parseDisplay(
@@ -261,3 +297,67 @@ def parseExpression(lexer) -> Tuple(ExpressionTree, Lexem):
                     )
                     theList.type = ListDisplay
                     buffer.append(theList)
+        else:
+            # last lexem...
+            raise SyntaxError(f'When parsing an expression, encountered {lexem}.')
+
+def reduce(content, content_types):
+    for i in range(len(content) - 1, -1, -1):
+        if content_types[i] is EoL:
+            content_types.pop(i)
+            content      .pop(i)
+    for right_i in range(len(content) - 1, 0, -1):
+        selected = content_types[right_i-1 : right_i+1]
+        replace = None
+        if selected == [Is, Not]:
+            replace = IsNot
+        elif selected == [Not, In]:
+            replace = NotIn
+        if replace is not None:
+            content_types = content_types[
+                : right_i - 1
+            ] + [
+                replace
+            ] + content_types[right_i + 1 :]
+            content       = content      [
+                : right_i - 1
+            ] + [
+                replace().lineNumber(selected[0].line_number)
+            ] + content      [right_i + 1 :]
+    for right_i in range(len(content) - 1, 0, -1):
+        if content_types[right_i] is Minus and (
+            right_i == 0 
+        or
+            content_types[right_i - 1] is Lexem
+        ):
+            content_types[right_i] = UnaryNegate
+            content      [right_i] = UnaryNegate().lineNumber(
+                content[right_i].line_number
+            )
+    for operation in OPERATION_PRECEDENCE:
+        while True:
+            try:
+                operation_i = content_types.index(operation)
+            except ValueError:
+                break
+            if operation in (UnaryNegate, Not):
+                right = content.pop(operation_i + 1)
+                content_types  .pop(operation_i + 1)
+                tree = ExpressionTree(Unary, [right])
+                tree.operationLexem = operation
+                content_types[operation_i] = ExpressionTree
+                content      [operation_i] = tree
+            else:
+                # binary operation
+                right = content.pop(operation_i + 1)
+                content_types  .pop(operation_i + 1)
+                left  = content.pop(operation_i - 1)
+                content_types  .pop(operation_i - 1)
+                operation_i -= 1
+                tree = ExpressionTree(Binary, [left, right])
+                tree.operationLexem = operation
+                content_types[operation_i] = ExpressionTree
+                content      [operation_i] = tree
+    if len(content) > 1:
+        raise SyntaxError(f'{len(content)} expressions concatenated. ')
+    return content[0]

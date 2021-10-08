@@ -19,14 +19,17 @@ expr:
   expr +-*/**% in is == < > <= >= != and or . expr
   not - expr
 
+(lowest precedence)
 or
 and
 not expr
 < <= > >=
 != ==
-in, not in, is, is not
+in is
+not in, is not
 + -
 * / // %
 - expr
 **
 .
+(highest precedence)
