@@ -81,7 +81,7 @@ class CmdTree(list):
                 elif type(lexem) is For:
                     expressionTree, last_lexem = parseExpression(lexer)
                     self.append(expressionTree)
-                    expect(last_lexem, In)
+                    expect(last_lexem, Of)
                     expressionTree, last_lexem = parseExpression(lexer)
                     self.append(expressionTree)
                     expect(last_lexem, Column)

@@ -67,6 +67,7 @@ class If      (Lexem) : pass
 class Import  (Lexem) : pass
 class From    (Lexem) : pass
 class In      (Lexem) : pass
+class Of      (Lexem) : pass
 class Is      (Lexem) : pass
 class NONE    (Lexem) : pass
 class Not     (Lexem) : pass

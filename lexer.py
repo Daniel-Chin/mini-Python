@@ -47,6 +47,7 @@ KEYWORDS = {
     'import'  : Import  , 
     'from'    : From    , 
     'in'      : In      , 
+    'of'      : Of      , 
     'is'      : Is      , 
     'None'    : NONE    , 
     'not'     : Not     , 
