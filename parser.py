@@ -93,7 +93,7 @@ class CmdTree(list):
             self.indent_level = lexem.value
             if self.line_number is None:
                 self.line_number = lexem.line_number
-                if self.line_number == 147:
+                if self.line_number == 165:
                     # For breakpoint
                     _ = 0
             lexem = next(lexer)
@@ -440,10 +440,10 @@ def parseExpression(lexer, first_lexem = None):
                             tree.extend(theSlice)
                             buffer.append(tree)
                         else:
-                            ExpressionTree(Indexing, [
+                            buffer.append(ExpressionTree(Indexing, [
                                 indexable, 
                                 reduce(content, content_types), 
-                            ])
+                            ]))
                     else:
                         if For in content_types or Of in content_types:
                             if For not in content_types or Of not in content_types:
