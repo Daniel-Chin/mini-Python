@@ -53,10 +53,10 @@ def expect(lexem, LexemTypes):
     if type(LexemTypes) is not tuple:
         LexemTypes = (LexemTypes, )
     if type(lexem) not in LexemTypes:
+        expecting = " or ".join([x.__name__ for x in LexemTypes])
         raise SyntaxError(
-            f'''Expecting {
-                " or ".join([x.__name__ for x in LexemTypes])
-            }, but parser encountered {lexem}.'''
+            'Expecting ' + expecting 
+            + ', but parser encountered ' + repr(lexem)
         )
 
 class CmdTree(list):
@@ -64,6 +64,17 @@ class CmdTree(list):
         super().__init__()
         self.indent_level = None
         self.type = None    # *PREFIX_KEYWORDS | AssignCmd | ExpressionCmd
+    
+    def __repr__(self):
+        return self.type.__name__ + super().__repr__()
+    
+    def pprint(self, depth = 0):
+        print(' ' * depth, self.type.__name__, '[', sep='', end='')
+        if self:
+            print()
+        for x in self:
+            x.pprint(depth + 1)
+        print(' ' * depth, ']')
 
     def parse(self, lexer):
         while True:
@@ -190,8 +201,22 @@ class ExpressionTree(list):
         self.type = _type
         self.operationLexem = None  # if type is Binary or Unary
     
+    def friendlyName(self):
+        if self.type in (Binary, Unary):
+            return self.operationLexem.__name__
+        else:
+            return self.type.__name__
+
     def __repr__(self):
-        return 'expr' + list.__repr__(self)
+        return self.friendlyName() + list.__repr__(self)
+    
+    def pprint(self, depth = 0):
+        print(' ' * depth, self.friendlyName(), '(', sep='', end='')
+        if self:
+            print()
+        for x in self:
+            x.pprint(depth + 1)
+        print(' ' * depth, ')')
 
 def parseDisplay(
     content, content_types, is_dict = False, 
@@ -203,7 +228,10 @@ def parseDisplay(
             try:
                 column_i = sub_content_types.index(Column)
             except ValueError:
-                raise SyntaxError('Mixed set and dict.')
+                raise SyntaxError(
+                    'Mixed set and dict: '
+                    + repr(sub_content)
+                )
             element = ExpressionTree(KeyValuePair, [
                 reduce(
                     sub_content      [:column_i],
@@ -233,6 +261,7 @@ def parseDisplay(
 
 def parseExpression(lexer, first_lexem = None):
     buffer = []
+    unclosed = 0
     while True:
         interupted = False
         buffer_types = [type(x) for x in buffer]
@@ -247,9 +276,9 @@ def parseExpression(lexer, first_lexem = None):
                 buffer_types.append(type(buffer[-1]))
                 if len(buffer_types) >= 3 and buffer_types[-2] is Dot:
                     expect(buffer[-3], ExpressionTree)
-                    buffer = buffer[:-3]
+                    buffer, left, right = buffer[:-3], buffer[-3], buffer[-1]
                     buffer.append(ExpressionTree(
-                        Attributing, [buffer[-3], buffer[-1]]
+                        Attributing, [left, right]
                     ))
         elif type(lexem) in (RParen, RBracket, RSquareBracket):
             try:
@@ -259,6 +288,7 @@ def parseExpression(lexer, first_lexem = None):
             except ValueError:
                 interupted = True
             else:
+                unclosed -= 1
                 if content_len == 0:
                     content = []
                 else:
@@ -312,7 +342,8 @@ def parseExpression(lexer, first_lexem = None):
                             )
                             if trialing_column:
                                 raise SyntaxError(
-                                    f'Trialing column not accepted in slicing starting with {lexem}. '
+                                    'Trialing column not accepted in slicing starting with '
+                                    + repr(lexem)
                                 )
                             if len(theSlice) == 2:
                                 theSlice.append(1)
@@ -330,25 +361,35 @@ def parseExpression(lexer, first_lexem = None):
                         theList.type = ListDisplay
                         buffer.append(theList)
         elif type(lexem) in (
-            LParen, LSquareBracket, LBracket, Comma, Column, 
+            LParen, LSquareBracket, LBracket, Comma, 
             Or, And, Not, LessThanOrEqual, LessThan, 
             GreaterThanOrEqual, GreaterThan, NotEqual, 
             Equal, In, Is, Plus, Minus, Times, Divide, 
             ModDiv, ToPowerOf, Dot, 
         ):
             buffer.append(lexem)
+            if type(lexem) in (LParen, LSquareBracket, LBracket):
+                unclosed += 1
+        elif type(lexem) is Column:
+            if unclosed > 0:
+                buffer.append(lexem)
+            else:
+                interupted = True
         else:
             interupted = True
         if interupted:
-            unclosed = {LParen, LSquareBracket, LBracket}.intersection(
-                buffer_types
-            )
             if unclosed:
+                which = {LParen, LSquareBracket, LBracket}.intersection(
+                    buffer_types
+                )
                 if type(lexem) is EoL:
                     expect(next(lexer), Indentation)
                 else:
                     raise SyntaxError(
-                        f'Expression terminated by {lexem} but has unclosed {unclosed}.'
+                        'Expression terminated by '
+                        + repr(lexem) 
+                        + ' but has unclosed '
+                        + repr(which)
                     )
             else:
                 return reduce(buffer, [type(x) for x in buffer]), lexem
@@ -412,14 +453,16 @@ def reduce(content, content_types):
                 content_types[operation_i] = ExpressionTree
                 content      [operation_i] = tree
     if len(content) > 1:
-        raise SyntaxError(f'{len(content)} expressions concatenated. ')
+        raise SyntaxError(
+            str(len(content)) + ' expressions concatenated: \n'
+            '\n'.join([repr(x) for x in content])
+        )
     return content[0]
 
 if __name__ == '__main__':
     # Self-parsing test
-    from pprint import pprint
     from lexer import Lexer, LookAheadIO
     with open(__file__, 'r') as f:
         lexer = Lexer(LookAheadIO(f))
         for cmdTree in CmdsParser(lexer):
-            pprint(cmdTree)
+            cmdTree.pprint()

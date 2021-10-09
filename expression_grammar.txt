@@ -10,6 +10,7 @@ expr:
   { expr : expr , ... }
   { expr , ... }
   [ expr , ... ]
+  [ expr For expr Of expr If expr]
   expr [ expr ]
   expr [ expr : ... ]
   ^^^^ this has to be as small as possible. 

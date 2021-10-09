@@ -11,6 +11,9 @@ class Lexem:
             type(self).__name__
         } @ line {self.line_number}>'''
 
+    def pprint(self, depth = 0):
+        print(' ' * depth, self, sep='')
+
 class EoL(Lexem): pass
 
 class ArguableLexem(Lexem):
