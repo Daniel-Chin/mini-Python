@@ -1,4 +1,5 @@
 from lexems import *
+from typing import List
 
 PREFIX_KEYWORDS = [
     If, 
@@ -589,6 +590,113 @@ def reduce(content, content_types):
             e_text += '\nHint: Did you mean a tuple? Don\'t omit the parenthesis.'
         raise SyntaxError(e_text)
     return content[0]
+
+def unexpectedIndent(cmd):
+    raise IndentationError(
+        'Unexpected indentation @ line ' + str(cmd.line_number)
+    )
+def missingIndent(cmd):
+    raise IndentationError(
+        'Missing indentation @ line ' + str(cmd.line_number)
+    )
+
+class Sequence(list): 
+    '''
+    Sequence of cmdTrees. 
+    '''
+    def parse(self, cmdsParser, first_cmd = None):
+        indent_level = None
+        cmd = first_cmd
+        while True:
+            if cmd is None:
+                try:
+                    cmd : CmdTree = next(cmdsParser)
+                except StopIteration:
+                    return
+            if indent_level is None:
+                indent_level = cmd.indent_level
+            if cmd.indent_level < indent_level:
+                return cmd
+            if cmd.indent_level > indent_level:
+                unexpectedIndent(cmd)
+            try:
+                SubstructureClass = {
+                    If: Conditional, 
+                    While: WhileLoop, 
+                    For: ForLoop, 
+                    Try: TryExcept, 
+                    Def: FunctionDefinition, 
+                    Class: ClassDefinition, 
+                }[cmd.type]
+            except KeyError:
+                if cmd.type in (Else, Elif, Except, Finally):
+                    raise SyntaxError(
+                        'Dangling ' + cmd.type.__name__
+                        + ' @ line ' + str(cmd.line_number)
+                    )
+                else:
+                    self.append(cmd)
+                    cmd = None
+            else:
+                substructure = SubstructureClass()
+                cmd = substructure.parse(cmdsParser, cmd)
+                self.append(substructure)
+
+class Conditional: 
+    class Elif:
+        def __init__(self):
+            self.condition : CmdTree = None
+            self.then : Sequence = None
+    
+    def __init__(self):
+        self.condition : CmdTree = None
+        self.then : Sequence = None
+        self.elIfs : List[self.Elif] = []
+        self._else : Sequence = None
+    
+    def parse(self, cmdsParser, first_cmd : CmdTree = None):
+        self.condition = first_cmd
+        low_indent = first_cmd.indent_level
+        high_indent = None
+        for cmd in cmdsParser:
+            cmd : CmdTree
+            if high_indent is None:
+                high_indent = cmd.indent_level
+                if high_indent <= low_indent:
+                    missingIndent(cmd)
+            if cmd.indent_level > high_indent:
+                unexpectedIndent(cmd)
+            if cmd.indent_level < high_indent:
+                return cmd
+
+class WhileLoop: 
+    def __init__(self):
+        self.condition : CmdTree = None
+        self.body : Sequence = None
+        self._else : Sequence = None
+class ForLoop: 
+    def __init__(self):
+        self._for : CmdTree = None
+        self.body : Sequence = None
+        self._else : Sequence = None
+class TryExcept: 
+    class OneCatch:
+        def __init__(self):
+            self.catching : CmdTree = None
+            self.handler : Sequence = None
+    def __init__(self):
+        self._try : Sequence = None
+        self.oneCatches : List[self.OneCatch]
+        self._else : Sequence = None
+        self._finally : Sequence = None
+class FunctionDefinition:
+    def __init__(self):
+        self._def : CmdTree = None
+        self.body : Sequence = None
+class ClassDefinition:
+    def __init__(self):
+        self._class : CmdTree = None
+        self.body : Sequence = None
 
 if __name__ == '__main__':
     from lexer import Lexer, LookAheadIO
