@@ -74,7 +74,7 @@ class CmdTree(list):
             print()
         for x in self:
             x.pprint(depth + 1)
-        print(' ' * depth, ']')
+        print(' ' * depth, ']', sep='')
 
     def parse(self, lexer):
         while True:
@@ -110,9 +110,15 @@ class CmdTree(list):
                         expect(lexem, (Identifier, RParen))
                         if type(lexem) is RParen:
                             break
-                        self.append(lexem)
+                        arg = FunctionArg(lexem)
+                        self.append(arg)
                         lexem = next(lexer)
-                        expect(lexem, (Comma, RParen))
+                        expect(lexem, (Comma, RParen, Assign))
+                        if type(lexem) is Assign: 
+                            expressionTree, last_lexem = parseExpression(lexer)
+                            arg.setDefault(expressionTree)
+                            expect(last_lexem, Comma, RParen)
+                            lexem = last_lexem
                         if type(lexem) is RParen:
                             break
                     expect(next(lexer), Column)
@@ -194,6 +200,17 @@ class Binary       (ExpressionType): pass
 class Unary        (ExpressionType): pass
 class KeyValuePair (ExpressionType): pass
 class Attributing  (ExpressionType): pass
+class ListComp     (ExpressionType): pass
+
+class FunctionArg: 
+    def __init__(self, identifierLexem):
+        self.identifierLexem = identifierLexem
+        self.has_default = False
+        self.default = None
+    
+    def setDefault(self, default):
+        self.has_default = True
+        self.default = default
 
 class ExpressionTree(list):
     def __init__(self, _type, x = []):
@@ -266,7 +283,11 @@ def parseExpression(lexer, first_lexem = None):
         interupted = False
         buffer_types = [type(x) for x in buffer]
         if first_lexem is None:
-            lexem = next(lexer)
+            try:
+                lexem = next(lexer)
+            except StopIteration:
+                interupted = True
+                lexem = None
         else:
             lexem = first_lexem
             first_lexem = None
@@ -355,11 +376,39 @@ def parseExpression(lexer, first_lexem = None):
                                 reduce(content, content_types), 
                             ])
                     else:
-                        theList, _ = parseDisplay(
-                            content, content_types, 
-                        )
-                        theList.type = ListDisplay
-                        buffer.append(theList)
+                        if For in content_types or Of in content_types:
+                            if For not in content_types or Of not in content_types:
+                                raise SyntaxError(
+                                    'List comp must have both "for" and "of", but you gave'
+                                    + repr(content)
+                                )
+                            theListComp = ExpressionTree(
+                                ListComp, []
+                            )
+                            sep = content_types.index(For)
+                            y, content_types = content_types[:sep], content_types[sep+1:]
+                            x, content       = content      [:sep], content      [sep+1:]
+                            theListComp.append(reduce(x, y))
+                            sep = content_types.index(Of)
+                            y, content_types = content_types[:sep], content_types[sep+1:]
+                            x, content       = content      [:sep], content      [sep+1:]
+                            theListComp.append(reduce(x, y))
+                            if If in content_types:
+                                sep = content_types.index(If)
+                                y, content_types = content_types[:sep], content_types[sep+1:]
+                                x, content       = content      [:sep], content      [sep+1:]
+                            else:
+                                x, y = content, content_types
+                            theListComp.append(reduce(x, y))
+                            if If in content_types:
+                                theListComp.append(reduce(content, content_types))
+                            buffer.append(theListComp)
+                        else:
+                            theList, _ = parseDisplay(
+                                content, content_types, 
+                            )
+                            theList.type = ListDisplay
+                            buffer.append(theList)
         elif type(lexem) in (
             LParen, LSquareBracket, LBracket, Comma, 
             Or, And, Not, LessThanOrEqual, LessThan, 
@@ -370,7 +419,7 @@ def parseExpression(lexer, first_lexem = None):
             buffer.append(lexem)
             if type(lexem) in (LParen, LSquareBracket, LBracket):
                 unclosed += 1
-        elif type(lexem) is Column:
+        elif type(lexem) in (Column, Of, For, If):
             if unclosed > 0:
                 buffer.append(lexem)
             else:
@@ -455,14 +504,13 @@ def reduce(content, content_types):
     if len(content) > 1:
         raise SyntaxError(
             str(len(content)) + ' expressions concatenated: \n'
-            '\n'.join([repr(x) for x in content])
+            + '\n'.join([repr(x) for x in content])
         )
     return content[0]
 
 if __name__ == '__main__':
-    # Self-parsing test
     from lexer import Lexer, LookAheadIO
-    with open(__file__, 'r') as f:
+    with open('test.minipy', 'r') as f:
         lexer = Lexer(LookAheadIO(f))
         for cmdTree in CmdsParser(lexer):
             cmdTree.pprint()

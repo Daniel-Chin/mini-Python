@@ -11,8 +11,6 @@ mini Python is a subset of Python. I wanna see if I can write a Python interpret
 
 ## What's missing
 - decorator
-- list comp
-- positional arguments
 - with as
 - f'{1}'
 - '%d kg' % 3
