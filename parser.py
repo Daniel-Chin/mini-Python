@@ -110,13 +110,14 @@ class CmdTree(list):
                         expect(lexem, (Identifier, RParen))
                         if type(lexem) is RParen:
                             break
-                        arg = FunctionArg(lexem)
+                        arg = FunctionArg()
+                        arg.name = lexem
                         self.append(arg)
                         lexem = next(lexer)
                         expect(lexem, (Comma, RParen, Assign))
                         if type(lexem) is Assign: 
                             expressionTree, last_lexem = parseExpression(lexer)
-                            arg.setDefault(expressionTree)
+                            arg.value = expressionTree
                             expect(last_lexem, (Comma, RParen))
                             lexem = last_lexem
                         if type(lexem) is RParen:
@@ -209,26 +210,23 @@ class Attributing  (ExpressionType): pass
 class ListComp     (ExpressionType): pass
 
 class FunctionArg: 
-    def __init__(self, identifierLexem):
-        self.identifierLexem = identifierLexem
-        self.has_default = False
-        self.default = None
-    
-    def setDefault(self, default):
-        self.has_default = True
-        self.default = default
+    def __init__(self):
+        self.name = None
+        self.value = None
     
     def __repr__(self):
-        s = repr(self.identifierLexem)
-        if self.has_default:
-            s += '=' + repr(self.default)
+        s = '='.join((repr(self.name), repr(self.value)))
         return 'arg(' + s + ')'
     
     def pprint(self, depth = 0):
-        print(' ' * depth, 'arg(', self.identifierLexem, sep='', end='')
-        if self.has_default:
-            print(' = ')
-            self.default.pprint(depth + 1)
+        print(' ' * depth, 'arg(', sep='', end='')
+        if self.name is not None:
+            print(self.name, end='')
+            if self.value is not None:
+                print(' = ', end='')
+        if self.value is not None:
+            print()
+            self.value.pprint(depth + 1)
             print(' ' * depth, end='')
         print(')')
 
@@ -267,6 +265,7 @@ class Empty:
 def parseDisplay(
     content, content_types, is_dict = False, 
     delimiter = Comma, allow_empty = False, 
+    parsingCallArgs = False, 
 ):
     tree = ExpressionTree(None, [])
     def parseOneElement(sub_content, sub_content_types):
@@ -297,7 +296,25 @@ def parseDisplay(
                 ), 
             ])
         else:
-            element = reduce(sub_content, sub_content_types)
+            if parsingCallArgs:
+                element = FunctionArg()
+                if Assign in sub_content_types:
+                    expect(sub_content[1], Assign)
+                    try:
+                        if sub_content_types[0] is not ExpressionTree:
+                            raise IndexError
+                        expect(sub_content[0][0], Identifier)
+                    except IndexError:
+                        raise SyntaxError(
+                            'Expecting Identifier, but encountered' 
+                            + repr(sub_content[0])
+                        )
+                    element.name = sub_content[0][0]
+                    sub_content       = sub_content      [2:]
+                    sub_content_types = sub_content_types[2:]
+                element.value = reduce(sub_content, sub_content_types)
+            else:
+                element = reduce(sub_content, sub_content_types)
         tree.append(element)
     while True:
         try:
@@ -354,16 +371,19 @@ def parseExpression(lexer, first_lexem = None):
                 buffer = buffer[:-content_len - 1]
                 content_types = [type(x) for x in content]
                 if type(lexem) is RParen:
-                    theTuple, trialing_comma = parseDisplay(
-                        content, content_types, 
-                    )
                     if buffer and type(buffer[-1]) is ExpressionTree:
                         callee = buffer.pop(-1)
-                        theTuple.type = TupleDisplay
+                        theArgs, _ = parseDisplay(
+                            content, content_types, 
+                            parsingCallArgs = True, 
+                        )
                         buffer.append(ExpressionTree(
-                            FunctionCall, [callee, theTuple], 
+                            FunctionCall, [callee, *theArgs], 
                         ))
                     else:
+                        theTuple, trialing_comma = parseDisplay(
+                            content, content_types, 
+                        )
                         if len(theTuple) == 1 and not trialing_comma:
                             theTuple.type = Parened
                             theParened = theTuple
@@ -453,7 +473,7 @@ def parseExpression(lexer, first_lexem = None):
             buffer.append(lexem)
             if type(lexem) in (LParen, LSquareBracket, LBracket):
                 unclosed += 1
-        elif type(lexem) in (Column, Of, For, If):
+        elif type(lexem) in (Column, Of, For, If, Assign):
             if unclosed > 0:
                 buffer.append(lexem)
             else:
