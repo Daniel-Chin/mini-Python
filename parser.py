@@ -24,7 +24,6 @@ class IsNot      (Lexem): pass
 class NotIn      (Lexem): pass
 class UnaryNegate(Lexem): pass
 OPERATION_PRECEDENCE = (
-    Dot, 
     ToPowerOf, 
     UnaryNegate, 
     Times, 
@@ -183,12 +182,16 @@ class Slicing      (ExpressionType): pass
 class Binary       (ExpressionType): pass
 class Unary        (ExpressionType): pass
 class KeyValuePair (ExpressionType): pass
+class Attributing  (ExpressionType): pass
 
 class ExpressionTree(list):
     def __init__(self, _type, x = []):
         super().__init__(x)
         self.type = _type
         self.operationLexem = None  # if type is Binary or Unary
+    
+    def __repr__(self):
+        return 'expr' + list.__repr__(self)
 
 def parseDisplay(
     content, content_types, is_dict = False, 
@@ -240,6 +243,14 @@ def parseExpression(lexer, first_lexem = None):
             first_lexem = None
         if type(lexem) in (Num, String, Boolean, None, Identifier):
             buffer.append(ExpressionTree(Terminal, [lexem]))
+            if type(lexem) is Identifier:
+                buffer_types.append(type(buffer[-1]))
+                if len(buffer_types) >= 3 and buffer_types[-2] is Dot:
+                    expect(buffer[-3], ExpressionTree)
+                    buffer = buffer[:-3]
+                    buffer.append(ExpressionTree(
+                        Attributing, [buffer[-3], buffer[-1]]
+                    ))
         elif type(lexem) in (RParen, RBracket, RSquareBracket):
             try:
                 content_len = buffer_types[::-1].index(
@@ -258,18 +269,19 @@ def parseExpression(lexer, first_lexem = None):
                     theTuple, trialing_comma = parseDisplay(
                         content, content_types, 
                     )
-                    if len(theTuple) == 1 and not trialing_comma:
-                        theTuple.type = Parened
-                        theParened = theTuple
-                        buffer.append(theParened)
-                    else:
+                    if buffer and type(buffer[-1]) is ExpressionTree:
+                        callee = buffer.pop(-1)
                         theTuple.type = TupleDisplay
-                        if buffer and type(buffer[-1]) is ExpressionTree:
-                            callee = buffer.pop(-1)
-                            buffer.append(ExpressionTree(
-                                FunctionCall, [callee, theTuple], 
-                            ))
+                        buffer.append(ExpressionTree(
+                            FunctionCall, [callee, theTuple], 
+                        ))
+                    else:
+                        if len(theTuple) == 1 and not trialing_comma:
+                            theTuple.type = Parened
+                            theParened = theTuple
+                            buffer.append(theParened)
                         else:
+                            theTuple.type = TupleDisplay
                             buffer.append(theTuple)
                 elif type(lexem) is RBracket:
                     if Column in content_types:
@@ -348,6 +360,7 @@ def reduce(content, content_types):
             content      .pop(i)
     for right_i in range(len(content) - 1, 0, -1):
         selected = content_types[right_i-1 : right_i+1]
+        line_number = content[right_i - 1]
         replace = None
         if selected == [Is, Not]:
             replace = IsNot
@@ -362,7 +375,7 @@ def reduce(content, content_types):
             content       = content      [
                 : right_i - 1
             ] + [
-                replace().lineNumber(selected[0].line_number)
+                replace().lineNumber(line_number)
             ] + content      [right_i + 1 :]
     for right_i in range(len(content) - 1, 0, -1):
         if content_types[right_i] is Minus and (

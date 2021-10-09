@@ -16,7 +16,8 @@ expr:
        Seems to be exactly immediate 1 expr at parse time. 
        (High precedence)
 
-  expr +-*/**% in is == < > <= >= != and or . expr
+  expr +-*/**% in is == < > <= >= != and or expr
+  expr . Identifier
   not - expr
 
 (lowest precedence)
@@ -31,5 +32,6 @@ not in, is not
 * / // %
 - expr
 **
+x[1]
 .
 (highest precedence)

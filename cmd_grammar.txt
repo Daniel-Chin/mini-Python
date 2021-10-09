@@ -33,7 +33,7 @@ Classifying:
     Elif expression:
     While expression:
     Except expression:
-    For expression In expression:
+    For expression Of expression:
     Else:
     Try:
     Finally:
