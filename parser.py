@@ -249,12 +249,29 @@ class ExpressionTree(list):
             x.pprint(depth + 1)
         print(' ' * depth, ')', sep='')
 
+class Empty:
+    '''
+    For example, x[5:] is x[5:Empty]
+    '''
+    def __repr__(self):
+        return '<Empty>'
+    def pprint(self, depth = 0):
+        print(' ' * depth, repr(self), sep='')
+
 def parseDisplay(
     content, content_types, is_dict = False, 
-    delimiter = Comma, 
+    delimiter = Comma, allow_empty = False, 
 ):
     tree = ExpressionTree(None, [])
     def parseOneElement(sub_content, sub_content_types):
+        if not sub_content:
+            if allow_empty:
+                tree.append(Empty())
+                return
+            else:
+                raise SyntaxError(
+                    '`parseDisplay` encounters empty segment while `allow_empty` is False. '
+                )
         if is_dict:
             try:
                 column_i = sub_content_types.index(Column)
@@ -373,15 +390,12 @@ def parseExpression(lexer, first_lexem = None):
                             )
                             theSlice, trialing_column = parseDisplay(
                                 content, content_types, 
-                                delimiter=Column
+                                delimiter=Column, allow_empty=True, 
                             )
                             if trialing_column:
-                                raise SyntaxError(
-                                    'Trialing column not accepted in slicing starting with '
-                                    + repr(lexem)
-                                )
+                                theSlice.append(Empty())
                             if len(theSlice) == 2:
-                                theSlice.append(1)
+                                theSlice.append(Num(1))
                             tree.extend(theSlice)
                             buffer.append(tree)
                         else:
@@ -497,24 +511,27 @@ def reduce(content, content_types):
                 operation_i = content_types.index(operation)
             except ValueError:
                 break
-            if operation in (UnaryNegate, Not):
-                right = content.pop(operation_i + 1)
-                content_types  .pop(operation_i + 1)
-                tree = ExpressionTree(Unary, [right])
-                tree.operationLexem = operation
-                content_types[operation_i] = ExpressionTree
-                content      [operation_i] = tree
-            else:
-                # binary operation
-                right = content.pop(operation_i + 1)
-                content_types  .pop(operation_i + 1)
-                left  = content.pop(operation_i - 1)
-                content_types  .pop(operation_i - 1)
-                operation_i -= 1
-                tree = ExpressionTree(Binary, [left, right])
-                tree.operationLexem = operation
-                content_types[operation_i] = ExpressionTree
-                content      [operation_i] = tree
+            try:
+                if operation in (UnaryNegate, Not):
+                    right = content.pop(operation_i + 1)
+                    content_types  .pop(operation_i + 1)
+                    tree = ExpressionTree(Unary, [right])
+                    tree.operationLexem = operation
+                    content_types[operation_i] = ExpressionTree
+                    content      [operation_i] = tree
+                else:
+                    # binary operation
+                    right = content.pop(operation_i + 1)
+                    content_types  .pop(operation_i + 1)
+                    left  = content.pop(operation_i - 1)
+                    content_types  .pop(operation_i - 1)
+                    operation_i -= 1
+                    tree = ExpressionTree(Binary, [left, right])
+                    tree.operationLexem = operation
+                    content_types[operation_i] = ExpressionTree
+                    content      [operation_i] = tree
+            except IndexError:
+                raise SyntaxError(repr(content))
     if len(content) > 1:
         raise SyntaxError(
             str(len(content)) + ' expressions concatenated: \n'

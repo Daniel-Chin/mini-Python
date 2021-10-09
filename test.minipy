@@ -84,9 +84,9 @@ class LookAheadIO:
         self.buffer = self.buffer[buffer_requested:]
         need_more = n_char - buffer_requested
         if need_more:
-            result += self.file.read(need_more)
+            result = result + self.file.read(need_more)
         if commit:
-            self.line_no += result.count('\n')
+            self.line_no = self.line_no + result.count('\n')
         return result
     
     def lookAhead(self, n_char):
