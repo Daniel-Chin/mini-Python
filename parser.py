@@ -117,7 +117,7 @@ class CmdTree(list):
                         if type(lexem) is Assign: 
                             expressionTree, last_lexem = parseExpression(lexer)
                             arg.setDefault(expressionTree)
-                            expect(last_lexem, Comma, RParen)
+                            expect(last_lexem, (Comma, RParen))
                             lexem = last_lexem
                         if type(lexem) is RParen:
                             break
@@ -211,6 +211,20 @@ class FunctionArg:
     def setDefault(self, default):
         self.has_default = True
         self.default = default
+    
+    def __repr__(self):
+        s = repr(self.identifierLexem)
+        if self.has_default:
+            s += '=' + repr(self.default)
+        return 'arg(' + s + ')'
+    
+    def pprint(self, depth = 0):
+        print(' ' * depth, 'arg(', self.identifierLexem, sep='', end='')
+        if self.has_default:
+            print(' = ')
+            self.default.pprint(depth + 1)
+            print(' ' * depth, end='')
+        print(')')
 
 class ExpressionTree(list):
     def __init__(self, _type, x = []):
@@ -233,7 +247,7 @@ class ExpressionTree(list):
             print()
         for x in self:
             x.pprint(depth + 1)
-        print(' ' * depth, ')')
+        print(' ' * depth, ')', sep='')
 
 def parseDisplay(
     content, content_types, is_dict = False, 
@@ -291,7 +305,7 @@ def parseExpression(lexer, first_lexem = None):
         else:
             lexem = first_lexem
             first_lexem = None
-        if type(lexem) in (Num, String, Boolean, None, Identifier):
+        if type(lexem) in (Num, String, Boolean, NONE, Identifier):
             buffer.append(ExpressionTree(Terminal, [lexem]))
             if type(lexem) is Identifier:
                 buffer_types.append(type(buffer[-1]))

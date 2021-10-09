@@ -73,7 +73,7 @@ class MixedTabsAndSpacesError(Exception): pass
 class ParseStringFailed(Exception): pass
 
 class LookAheadIO:
-    def __init__(self, file):
+    def __init__(self, file = None):
         self.file = file
         self.buffer = []
         self.line_no = 1
