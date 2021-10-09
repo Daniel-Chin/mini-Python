@@ -173,19 +173,19 @@ def expectChar(lAIO):
     if char == '\\':
         char_1 = lAIO.read(1)
         try:
-            return {
+            return ({
                 '\\': '\\', 'n': '\n', 't': '\t', 'r': '\r', 
-            }[char_1], True
+            }[char_1], True)
         except KeyError:
             if char_1 == '':
                 raise EOFError(
                     'String backslash escaping interrupted by EOF.'
                 )
             raise ParseStringFailed(
-                f'Backslash followed by "{char_1}"'
+                'Backslash followed by invalid char'
             )
     else:
-        return char, False
+        return (char, False)
 
 def expectString(lAIO, first_char):
     buffer = []
@@ -193,10 +193,10 @@ def expectString(lAIO, first_char):
         # ''' / """
         lAIO.read(2)
         while True:
-            char, escaped = expectChar(lAIO)
+            (char, escaped) = expectChar(lAIO)
             if char == '':
                 raise EOFError(
-                    f'EOF reached when parsing a string starting with {first_char * 3}'
+                    'EOF reached when parsing a string starting with {first_char * 3}'
                 )
             elif not escaped and char == first_char:
                 if lAIO.lookAhead(2) == first_char * 2:
@@ -211,7 +211,7 @@ def expectString(lAIO, first_char):
             char, escaped = expectChar(lAIO)
             if char == '':
                 raise EOFError(
-                    f'EOF reached when parsing a string starting with {first_char}'
+                    'EOF reached when parsing a string starting with {first_char}'
                 )
             elif not escaped and char == first_char:
                 break

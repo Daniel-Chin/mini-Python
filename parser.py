@@ -577,10 +577,14 @@ def reduce(content, content_types):
                 content_types[operation_i] = ExpressionTree
                 content      [operation_i] = tree
     if len(content) > 1:
-        raise SyntaxError(
-            str(len(content)) + ' expressions concatenated: \n'
+        e_text = (
+            str(len(content)) 
+            + ' expressions concatenated: \n'
             + '\n'.join([repr(x) for x in content])
         )
+        if type(content[1]) is Comma:
+            e_text += '\nHint: Did you mean a tuple? Don\'t omit the parenthesis.'
+        raise SyntaxError(e_text)
     return content[0]
 
 if __name__ == '__main__':
