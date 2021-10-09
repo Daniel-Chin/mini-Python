@@ -91,7 +91,7 @@ class LookAheadIO:
     
     def lookAhead(self, n_char):
         result = self.read(n_char, commit = False)
-        self.buffer = [*result] + self.buffer
+        self.buffer = [result] + self.buffer
         return result
     
     def readline(self):

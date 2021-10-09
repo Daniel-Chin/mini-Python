@@ -498,6 +498,8 @@ def parseExpression(lexer, first_lexem = None):
                 return reduce(buffer, [type(x) for x in buffer]), lexem
 
 def reduce(content, content_types):
+    if not content:
+        raise SyntaxError('Reducing empty expression.')
     for i in range(len(content) - 1, -1, -1):
         if content_types[i] is EoL:
             content_types.pop(i)
@@ -537,27 +539,28 @@ def reduce(content, content_types):
                 operation_i = content_types.index(operation)
             except ValueError:
                 break
-            try:
-                if operation in (UnaryNegate, Not):
-                    right = content.pop(operation_i + 1)
-                    content_types  .pop(operation_i + 1)
-                    tree = ExpressionTree(Unary, [right])
-                    tree.operationLexem = operation
-                    content_types[operation_i] = ExpressionTree
-                    content      [operation_i] = tree
-                else:
-                    # binary operation
-                    right = content.pop(operation_i + 1)
-                    content_types  .pop(operation_i + 1)
-                    left  = content.pop(operation_i - 1)
-                    content_types  .pop(operation_i - 1)
-                    operation_i -= 1
-                    tree = ExpressionTree(Binary, [left, right])
-                    tree.operationLexem = operation
-                    content_types[operation_i] = ExpressionTree
-                    content      [operation_i] = tree
-            except IndexError:
+            if len(content) < operation_i + 2:
                 raise SyntaxError(repr(content))
+            if operation in (UnaryNegate, Not):
+                right = content.pop(operation_i + 1)
+                content_types  .pop(operation_i + 1)
+                tree = ExpressionTree(Unary, [right])
+                tree.operationLexem = operation
+                content_types[operation_i] = ExpressionTree
+                content      [operation_i] = tree
+            else:
+                # binary operation
+                if operation_i == 0:
+                    raise SyntaxError(repr(content))
+                right = content.pop(operation_i + 1)
+                content_types  .pop(operation_i + 1)
+                left  = content.pop(operation_i - 1)
+                content_types  .pop(operation_i - 1)
+                operation_i -= 1
+                tree = ExpressionTree(Binary, [left, right])
+                tree.operationLexem = operation
+                content_types[operation_i] = ExpressionTree
+                content      [operation_i] = tree
     if len(content) > 1:
         raise SyntaxError(
             str(len(content)) + ' expressions concatenated: \n'
