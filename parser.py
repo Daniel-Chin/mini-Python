@@ -64,23 +64,34 @@ class CmdTree(list):
         super().__init__()
         self.indent_level = None
         self.type = None    # *PREFIX_KEYWORDS | AssignCmd | ExpressionCmd
+        self.line_number = None
     
     def __repr__(self):
-        return self.type.__name__ + super().__repr__()
+        s = self.type.__name__ + super().__repr__()
+        if self:
+            return s 
+        else:
+            return s + ' @ line ' + str(self.line_number)
     
     def pprint(self, depth = 0):
         print(' ' * depth, self.type.__name__, '[', sep='', end='')
         if self:
             print()
-        for x in self:
-            x.pprint(depth + 1)
-        print(' ' * depth, ']', sep='')
+            for x in self:
+                x.pprint(depth + 1)
+            print(' ' * depth, end='')
+        print(']', end='')
+        if not self:
+            print(' @ line', self.line_number, end='')
+        print()
 
     def parse(self, lexer):
         while True:
             lexem = next(lexer)
             expect(lexem, Indentation)
             self.indent_level = lexem.value
+            if self.line_number is None:
+                self.line_number = lexem.line_number
             lexem = next(lexer)
             if type(lexem) in PREFIX_KEYWORDS:
                 self.type = type(lexem)

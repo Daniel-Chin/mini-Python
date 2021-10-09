@@ -24,7 +24,7 @@ class ArguableLexem(Lexem):
     def __repr__(self):
         return f'''<Lexem {
             type(self).__name__
-        }({self.value}) @ line {self.line_number}>'''
+        }({repr(self.value)}) @ line {self.line_number}>'''
 
 class Identifier  (ArguableLexem): pass
 class Num         (ArguableLexem): pass
