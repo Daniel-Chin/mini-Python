@@ -128,12 +128,13 @@ def Lexer(lAIO : LookAheadIO):
             word = expectWord(lAIO, char)
             if word == 'True':
                 yield Boolean(True).lineNumber(lAIO.line_no)
-            if word == 'False':
+            elif word == 'False':
                 yield Boolean(False).lineNumber(lAIO.line_no)
-            try:
-                yield KEYWORDS[word]().lineNumber(lAIO.line_no)
-            except KeyError:
-                yield Identifier(word).lineNumber(lAIO.line_no)
+            else:
+                try:
+                    yield KEYWORDS[word]().lineNumber(lAIO.line_no)
+                except KeyError:
+                    yield Identifier(word).lineNumber(lAIO.line_no)
         elif char in NUM_BODY:
             n = expectNum(lAIO, char)
             if n == '.':
