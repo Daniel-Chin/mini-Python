@@ -44,9 +44,9 @@ Classifying:
     From expression Import Identifier, ... | *
     Del expression
     Raise expression
+    Return (expression)
     Pass
     Break
-    Return
     Continue
   else:
     expression

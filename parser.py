@@ -159,8 +159,14 @@ class CmdTree(list):
                     expressionTree, last_lexem = parseExpression(lexer)
                     self.append(expressionTree)
                     expect(last_lexem, EoL)
-                elif type(lexem) in (Pass, Break, Return, Continue):
+                elif type(lexem) in (Pass, Break, Continue):
                     expect(next(lexer), EoL)
+                elif type(lexem) is Return:
+                    lexem = next(lexer)
+                    if type(lexem) is not EoL:
+                        expressionTree, last_lexem = parseExpression(lexer, lexem)
+                        self.append(expressionTree)
+                        expect(last_lexem, EoL)
             elif type(lexem) is EoL:
                 continue
             else:
@@ -466,7 +472,7 @@ def parseExpression(lexer, first_lexem = None):
                         'Expression terminated by '
                         + repr(lexem) 
                         + ' but has unclosed '
-                        + repr(which)
+                        + repr([x.__name__ for x in which])
                     )
             else:
                 return reduce(buffer, [type(x) for x in buffer]), lexem
