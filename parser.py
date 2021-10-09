@@ -202,7 +202,10 @@ class CmdTree(list):
 def CmdsParser(lexer):
     while True:
         cmdTree = CmdTree()
-        cmdTree.parse(lexer)
+        try:
+            cmdTree.parse(lexer)
+        except StopIteration:
+            return
         yield cmdTree
 
 class ExpressionType: pass

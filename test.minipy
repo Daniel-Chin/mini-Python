@@ -208,7 +208,7 @@ def expectString(lAIO, first_char):
                 buffer.append(char)
     else:
         while True:
-            char, escaped = expectChar(lAIO)
+            (char, escaped) = expectChar(lAIO)
             if char == '':
                 raise EOFError(
                     'EOF reached when parsing a string starting with {first_char}'
@@ -257,7 +257,8 @@ def expectNum(lAIO, first_char):
 
 if __name__ == '__main__':
     # Self-lexing test
-    with open(__file__, 'r') as f:
-        lexer = Lexer(LookAheadIO(f))
-        for lexem of lexer:
-            print(lexem)
+    f = open(__file__, 'r')
+    lexer = Lexer(LookAheadIO(f))
+    for lexem of lexer:
+        print(lexem)
+    f.close()
