@@ -25,3 +25,5 @@ mini Python is a subset of Python. I wanna see if I can write a Python interpret
 - 1 < 2 < 3
 - 4 // 2
 - import as
+- named argument
+- 
