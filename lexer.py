@@ -173,6 +173,7 @@ def expectChar(lAIO : LookAheadIO):
         try:
             return {
                 '\\': '\\', 'n': '\n', 't': '\t', 'r': '\r', 
+                '\'': '\'', '"': '"', 
             }[char_1], True
         except KeyError:
             if char_1 == '':
