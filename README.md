@@ -28,3 +28,5 @@ mini Python is a subset of Python. I wanna see if I can write a Python interpret
 - named argument
 - +=
 - reraise exception with `raise`
+- yield
+- tuple cannot omit ()

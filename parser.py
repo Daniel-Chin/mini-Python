@@ -18,6 +18,7 @@ PREFIX_KEYWORDS = [
     From, 
     Import, 
     Raise, 
+    For, 
 ]
 
 class IsNot      (Lexem): pass
@@ -92,6 +93,9 @@ class CmdTree(list):
             self.indent_level = lexem.value
             if self.line_number is None:
                 self.line_number = lexem.line_number
+                if self.line_number == 147:
+                    # For breakpoint
+                    _ = 0
             lexem = next(lexer)
             if type(lexem) in PREFIX_KEYWORDS:
                 self.type = type(lexem)

@@ -102,10 +102,9 @@ class LookAheadIO:
             elif char == '\n':
                 return
 
-def Lexer(lAIO : LookAheadIO):
+def Lexer(lAIO):
     indent_using = []
     indentation = expectIndentation(lAIO, indent_using)
-    yield indentation.lineNumber(1)
     while True:
         prev_line_no = lAIO.line_no
         char = lAIO.read(1)
@@ -120,48 +119,48 @@ def Lexer(lAIO : LookAheadIO):
                 # it is ok to end a file on an unfinished comment
                 pass    
         elif char == '\n':
-            yield EoL().lineNumber(prev_line_no)
+            return EoL().lineNumber(prev_line_no)
             indentation = expectIndentation(lAIO, indent_using)
-            yield indentation.lineNumber(lAIO.line_no)
+            return indentation.lineNumber(lAIO.line_no)
         elif char == '\r':
             raise CarriageReturnDetected
         elif char in ("'", '"'):
             s = expectString(lAIO, char)
-            yield String(s).lineNumber(lAIO.line_no)
+            return String(s).lineNumber(lAIO.line_no)
         elif char in IDENTIFIER_START:
             word = expectWord(lAIO, char)
             if word == 'True':
-                yield Boolean(True).lineNumber(lAIO.line_no)
+                return Boolean(True).lineNumber(lAIO.line_no)
             if word == 'False':
-                yield Boolean(False).lineNumber(lAIO.line_no)
+                return Boolean(False).lineNumber(lAIO.line_no)
             try:
-                yield KEYWORDS[word]().lineNumber(lAIO.line_no)
+                return KEYWORDS[word]().lineNumber(lAIO.line_no)
             except KeyError:
-                yield Identifier(word).lineNumber(lAIO.line_no)
+                return Identifier(word).lineNumber(lAIO.line_no)
         elif char in NUM_BODY:
             n = expectNum(lAIO, char)
             if n == '.':
-                yield Dot().lineNumber(lAIO.line_no)
+                return Dot().lineNumber(lAIO.line_no)
             else:
-                yield Num(n).lineNumber(lAIO.line_no)
+                return Num(n).lineNumber(lAIO.line_no)
         else:
-            for symbol, Lexem of SYMBOLS_PRIORITY:
+            for (symbol, Lexem) of SYMBOLS_PRIORITY:
                 need_more = len(symbol) - 1
                 read = char + lAIO.lookAhead(need_more)
                 if read == symbol:
                     lAIO.read(need_more)
-                    yield Lexem().lineNumber(lAIO.line_no)
+                    return Lexem().lineNumber(lAIO.line_no)
                     break
             else:
                 raise LexingNoMatch(repr(
                     char + ''.join(lAIO.buffer)
                 ))
 
-def expectIndentation(lAIO : LookAheadIO, indent_using : list):
+def expectIndentation(lAIO, indent_using):
     acc = 0
     while lAIO.lookAhead(1) in (' ', '\t'):
         char = lAIO.read(1)
-        acc += 1
+        acc = acc + 1
         if indent_using:
             if indent_using[0] != char:
                 raise MixedTabsAndSpacesError
@@ -169,7 +168,7 @@ def expectIndentation(lAIO : LookAheadIO, indent_using : list):
             indent_using.append(char)
     return Indentation(acc)
 
-def expectChar(lAIO : LookAheadIO):
+def expectChar(lAIO):
     char = lAIO.read(1)
     if char == '\\':
         char_1 = lAIO.read(1)
@@ -188,7 +187,7 @@ def expectChar(lAIO : LookAheadIO):
     else:
         return char, False
 
-def expectString(lAIO : LookAheadIO, first_char):
+def expectString(lAIO, first_char):
     buffer = []
     if lAIO.lookAhead(2) == first_char * 2:
         # ''' / """
@@ -224,7 +223,7 @@ def expectString(lAIO : LookAheadIO, first_char):
                 buffer.append(char)
     return ''.join(buffer)
 
-def expectWord(lAIO : LookAheadIO, first_char):
+def expectWord(lAIO, first_char):
     buffer = [first_char]
     while True:
         char = lAIO.lookAhead(1)
@@ -235,7 +234,7 @@ def expectWord(lAIO : LookAheadIO, first_char):
             break
     return ''.join(buffer)
 
-def expectNum(lAIO : LookAheadIO, first_char):
+def expectNum(lAIO, first_char):
     buffer = [first_char]
     while True:
         char = lAIO.lookAhead(1)
