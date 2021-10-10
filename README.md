@@ -32,30 +32,34 @@ How to error-time output stack? define exception?
 - type(thing) -> thingTemplate
 - class.__base__ = None | class
 
-## What's different
+## What's missing
 - decorator
-- with as
-- f'{1}'
-- '%d kg' % 3
+- with ... as ...
+- `f'{1}'`
+- `'%d kg' % 3`
 - many built-ins
 - package import
 - multi inheritance
 - lambda function
-- 1 if 0 else 2
-- [*a]
+- `1 if 0 else 2`
+- `[*'asd']`
 - | ^ & << >> @ ~
 - await, :=
-- 1 < 2 < 3
-- 4 // 2
+- `1 < 2 < 3`
+- `4 // 2`
 - import ... as ...
-- +=
+- `+=`
 - re-raise exception with `raise`
 - `except Exception as e`
-- yield
+- `yield`
 - tuple cannot omit ()
 - multi commands cannot be on same line
-- Some builtin attributes are read-only in Python. They can be modified by user in miniPy. 
 - `except (Exc1, Exc2):` is not allowed. 
+- `help()`
+- `10e-5`
+
+## what's different
+- Some builtin attributes are read-only in Python. They can be modified by user in miniPy. 
 - `isinstanceof` is intentionally not exposed. 
 - you can `raise` non-exception things. 
 - There's no `BaseException`. just use `Exception`. 

@@ -260,7 +260,12 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
             ...
 
 def isTrue(thing : Thing) -> bool:
-    return thing.namespace['__bool__'].call() is builtin.__true__
+    try:
+        __bool__ = thing.namespace['__bool__']
+    except KeyError:
+        ...
+        # not found
+    return __bool__.call() is builtin.__true__
 
 def assignTo(
     thing : Thing, slot, 
