@@ -1,13 +1,20 @@
 # mini Python
 mini Python is a subset of Python. I wanna see if I can write a Python interpreter of mini Python.  
 
-## Things
-- A module is a pair of (namespace, script).  
-- A script is a miniPy syntax tree ("MST").  
-- A cmd (can be multiline) is parsed into a cmd tree.  
-- A sequence of cmd trees are parsed into an MST.  
+## Principles
+- "MST" = miniPy syntax tree
+
+### Parsing principles
 - An expression (can be multiline) is parsed into an expression tree.  
+- A cmd (can be multiline) is parsed into a cmd tree.  
 - A multi-line cmd must have at least one unclosed bracket/parenthesis in every line except its last line.  
+- A sequence of cmd trees are parsed into an MST.  
+
+### Runtime principles
+- A runtime is an MST and a stack of namespaces (local - nonlocal... - global).  
+- A module is a runtime. A function is a runtime.  
+- An Object is a namespace.  
+- A namespace is a mapping from Identifier to Object. 
 
 ## What's missing
 - decorator
@@ -21,13 +28,12 @@ mini Python is a subset of Python. I wanna see if I can write a Python interpret
 - 1 if 0 else 2
 - [*a]
 - | ^ & << >> @ ~
-- await, ;=
+- await, :=
 - 1 < 2 < 3
 - 4 // 2
-- import as
-- named argument
+- import ... as ...
 - +=
-- reraise exception with `raise`
+- re-raise exception with `raise`
 - yield
 - tuple cannot omit ()
 - multi commands cannot be on same line
