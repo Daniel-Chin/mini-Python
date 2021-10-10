@@ -18,10 +18,12 @@ class Builtin:
     )
     def tempFunc(a):
         if a.primitive_value is not None:
-            return hash(a.primitive_value)
-        else:
-            ...
-            # unhashable type
+            try:
+                return hash(a.primitive_value)
+            except TypeError:
+                pass
+        ...
+        # unhashable type
     Class.namespace['__hash__'] = wrapFuncion(
         tempFunc
     )

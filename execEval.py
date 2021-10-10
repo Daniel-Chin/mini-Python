@@ -42,16 +42,25 @@ def evalExpression(
             evalExpression(x, environment) for x in eTree
         ])
     elif eTree.type is SetDisplay:
-        ...
+        s = set()
+        for x in eTree:
+            thing = evalExpression(x, environment)
+            if thing.primitive_value is None:
+                key = thing
+            else:
+                key = thing.primitive_value
+            s.add(key)
+        return instantiate(builtin.set, s)
     elif eTree.type is DictDisplay:
         d = {}
-        for key, value in eTree:
-            keyThing = evalExpression(key, environment)
-            d[
-                keyThing.primitive_value
-            ] = evalExpression(value, environment)
-            # ... this is wrong!!!
-        return instantiate(builtin.set, d)
+        for keyTree, valueTree in eTree:
+            keyThing = evalExpression(keyTree, environment)
+            if keyThing.primitive_value is None:
+                key = keyThing
+            else:
+                key = keyThing.primitive_value
+            d[key] = evalExpression(valueTree, environment)
+        return instantiate(builtin.dict, d)
     elif eTree.type is FunctionCall:
         calleeExpr, *funcArgs = eTree
         args = []
