@@ -48,9 +48,15 @@ How to error-time output stack? define exception?
 - import ... as ...
 - +=
 - re-raise exception with `raise`
+- `except Exception as e`
 - yield
 - tuple cannot omit ()
 - multi commands cannot be on same line
+- Some builtin attributes are read-only in Python. They can be modified by user in miniPy. 
+- `except (Exc1, Exc2):` is not allowed. 
+- `isinstanceof` is intentionally not exposed. 
+- you can `raise` non-exception things. 
+- `ThingTemplate` cannot be extended. If you try, undefined behaviors. 
 
 ## Things
 - Memory allocation and garbage collection are inherited from Python. 

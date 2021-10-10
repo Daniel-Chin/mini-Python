@@ -62,6 +62,9 @@ def expect(lexem, LexemTypes):
         )
 
 class CmdTree(list):
+    '''
+    A sequence of expressionTree | lexem. 
+    '''
     def __init__(self):
         super().__init__()
         self.indent_level = None
@@ -230,8 +233,8 @@ class ListComp     (ExpressionType): pass
 
 class FunctionArg: 
     def __init__(self):
-        self.name = None
-        self.value = None
+        self.name : Identifier = None
+        self.value : ExpressionTree = None
     
     def __repr__(self):
         s = '='.join((repr(self.name), repr(self.value)))
@@ -601,7 +604,7 @@ def errorIndent(cmd, remark):
 
 class Sequence(list): 
     '''
-    Sequence of cmdTrees. 
+    Sequence of cmdTree | substructure. 
     '''
     def parse(
         self, cmdsParser, first_cmd = None, 
@@ -663,7 +666,7 @@ class Conditional:
     def __init__(self):
         self.condition : CmdTree = None
         self.then : Sequence = None
-        self.elIfs : List[self.Elif] = []
+        self.elIfs : List[self._Elif] = []
         self._else : Sequence = None
     
     def parse(self, cmdsParser, first_cmd : CmdTree = None):
