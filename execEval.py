@@ -1,10 +1,10 @@
-from runtime import Environment, Thing, instantiate
+from runtime import Environment, Thing, instantiate, isTrue
 from lexer import *
 from .parser import (
-    CmdTree, ExpressionTree, FunctionArg, 
+    CmdTree, Empty, ExpressionTree, FunctionArg, 
     Terminal, Parened, TupleDisplay, FunctionCall, 
     DictDisplay, SetDisplay, ListDisplay, Indexing, Slicing, 
-    Binary, Unary, KeyValuePair, Attributing, ListComp, 
+    Binary, Unary, Attributing, ListComp, 
 )
 from builtin import builtin
 
@@ -82,7 +82,41 @@ def evalExpression(
                 keyword_args[arg_name] = evalExpression(
                     funcArg.value, environment, 
                 )
-        return evalExpression(calleeExpr).call(*args, **keyword_args)
+        return evalExpression(calleeExpr, environment).call(
+            *args, **keyword_args, 
+        )
+    elif eTree.type is Indexing:
+        indexee = evalExpression(eTree[0], environment)
+        index = evalExpression(eTree[1], environment)
+        return indexee.namespace['__getitem__'].call(index)
+    elif eTree.type is Slicing:
+        slicee = evalExpression(eTree[0], environment)
+        start = evalExpression(eTree[1], environment)
+        end = evalExpression(eTree[2], environment)
+        step = evalExpression(eTree[3], environment)
+        return slicee.namespace['__getslice__'].call(
+            instantiate(builtin.tuple, (start, end, step))
+        )
+    elif eTree.type is Empty:
+        return builtin.__none__
+    elif eTree.type is Binary:
+        left = evalExpression(eTree[0], environment)
+        if type(eTree.operationLexem) is Or:
+            if isTrue(left):
+                return builtin.__true__
+            if isTrue(evalExpression(eTree[1], environment)):
+                return builtin.__true__
+            return builtin.__false__
+        elif type(eTree.operationLexem) is And:
+            if isTrue(left):
+                if isTrue(evalExpression(eTree[1], environment)):
+                    return builtin.__true__
+                return builtin.__false__
+            return builtin.__false__
+        else:
+            right = evalExpression(eTree[1], environment)
+        if type(eTree.operationLexem) is ToPowerOf:
+            
 
 def executeCmdTree(cmdTree : CmdTree, environment : Environment):
     pass

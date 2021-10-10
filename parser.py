@@ -443,7 +443,9 @@ def parseExpression(lexer, first_lexem = None):
                             if trialing_column:
                                 theSlice.append(Empty())
                             if len(theSlice) == 2:
-                                theSlice.append(Num(1))
+                                theSlice.append(ExpressionTree(Terminal, 
+                                    [Num(1)]
+                                ))
                             tree.extend(theSlice)
                             buffer.append(tree)
                         else:
