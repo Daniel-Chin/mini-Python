@@ -51,6 +51,10 @@ class Builtin:
     NameError._class = Class
     NameError.namespace['__base__'] = Exception
     NameError.namespace['__name__'] = 'NameError'
+    TypeError = Thing()
+    TypeError._class = Class
+    TypeError.namespace['__base__'] = Exception
+    TypeError.namespace['__name__'] = 'TypeError'
 
     NoneType = Thing()
     NoneType._class = Class

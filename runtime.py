@@ -39,14 +39,17 @@ class Thing:
         if self._class is builtin.Function:
             return executeFunction(self, args, keyword_args)
         elif self._class is builtin.Class:
-            ...
+            return instantiate(self, *args, **keyword_args)
         else: 
             try:
                 return self.namespace['__call__'].call(
                     *args, **keyword_args, 
                 )
             except KeyError:
-                ...
+                raise Helicopter(instantiate(
+                    builtin.TypeError, 
+                    f'{builtin.repr(self)} is not callable.', 
+                ))
 
 class Environment(list):
     def assign(self, name, value : Thing):
