@@ -7,6 +7,7 @@ from .parser import (
     FunctionDefinition, ClassDefinition, 
 )
 from builtin import builtin
+from execEval import evalExpression, executeCmdTree
 
 class Thing:
     def __init__(self) -> None:
@@ -21,7 +22,7 @@ class Thing:
         # if it is a primitive
         self.primitive_value = None
     
-    def call(self, args = [], keyword_args = {}):
+    def call(self, *args, **keyword_args):
         if self._class is builtin.Function:
             return executeFunction(self, args, keyword_args)
         elif self._class is builtin.Class:
@@ -29,7 +30,7 @@ class Thing:
         else: 
             try:
                 return self.namespace['__call__'].call(
-                    args, keyword_args, 
+                    *args, **keyword_args, 
                 )
             except KeyError:
                 ...
@@ -51,8 +52,8 @@ class Helicopter(Exception):
     def __init__(self, content = None):
         super().__init__()
         self.content : Thing = content
-        self.stackOfStack = []
-        # Inner stack: stack trace. Outer stack: "During handling of the above exception"
+        self.stack = []
+        self.during = None
 class ReturnAsException(Exception):
     def __init__(self, content = None):
         super().__init__()
@@ -152,10 +153,10 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
                     while True:
                         try:
                             nextThing = theIter.namespace['__next__'].call()
-                        except Helicopter as e:
-                            if e.content._class is builtin.StopIteration:
+                        except Helicopter as h:
+                            if h.content._class is builtin.StopIteration:
                                 break
-                            raise e
+                            raise h
                         assignTo(nextThing, loopVar, environment)
                         executeSequence(subBlock.body, environment)
                 except BreakAsException:
@@ -173,18 +174,22 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
                     handlers.append((catching, oneCatch.handler))
                 try:
                     executeSequence(subBlock._try, environment)
-                except Helicopter as e:
-                    raised : Thing = e.content
+                except Helicopter as h:
+                    raised : Thing = h.content
                     if raised._class is builtin.Class:
                         raisedClass = raised
                     else:
                         raisedClass = raised._class
                     for catching, handler in handlers:
                         if isSubclassOf(raisedClass, catching):
-                            executeSequence(handler, environment)
+                            try:
+                                executeSequence(handler, environment)
+                            except Helicopter as innerH:
+                                innerH.during = h
+                                raise innerH
                             break
                     else:
-                        raise e
+                        raise h
                 else:
                     if subBlock._else is not None:
                         executeSequence(subBlock._else, environment)
@@ -239,12 +244,6 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
 def isTrue(thing : Thing) -> bool:
     return thing.namespace['__bool__'].call() is builtin.__true__
 
-def evalExpression(expressionTree, environment : Environment) -> Thing:
-    ...
-
-def executeCmdTree(cmdTree : CmdTree, environment : Environment):
-    pass
-
 def assignTo(
     thing : Thing, slot, 
     environment : Environment, 
@@ -256,7 +255,7 @@ def assignTo(
     else:
         raise TypeError(
             'Cannot assign to non-Identifier non-ExpressionTree. '
-        )
+        )   # this is a non-miniPy error
 
 def isSubclassOf(potentialSubclass : Thing, potentialBaseclass : Thing):
     cursor = potentialSubclass
@@ -268,3 +267,17 @@ def isSubclassOf(potentialSubclass : Thing, potentialBaseclass : Thing):
         except KeyError:
             return False
     return True
+
+def instantiate(theClass : Thing, args = [], keyword_args = {}):
+    thing = Thing()
+    thing._class = theClass
+    baseclass = theClass
+    while True:
+        __base__ = None
+        for name, value in baseclass.namepsace.items():
+            if name == '__base__':
+                __base__ = value
+            else:
+                if value._class is builtin.Function:
+                    
+    # inherit all methods from baseeclasees

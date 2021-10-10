@@ -32,7 +32,7 @@ How to error-time output stack? define exception?
 - type(thing) -> thingTemplate
 - class.__base__ = None | class
 
-## What's missing
+## What's different
 - decorator
 - with as
 - f'{1}'
@@ -60,6 +60,7 @@ How to error-time output stack? define exception?
 - you can `raise` non-exception things. 
 - There's no `BaseException`. just use `Exception`. 
 - `object` class is not exposed. 
+- Exception raised in "finally" section does not display "During handling of the above exception". 
 
 ## Remarks
 - Memory allocation and garbage collection are inherited from Python. 
@@ -75,6 +76,35 @@ class c:
 ```
 prints "4" in Python.  
 I have no idea what they did. 
+
+### Another class thing
+When instantiating, Python binds the object to the first argument of all the class methods.  
+Or does it?  
+```python
+class F:
+ def __call__(self, a):
+  print(a)
+
+f=F()
+
+class C:
+ a=f
+
+C().a()
+```
+Reports `TypeError: __call__() missing 1 required positional argument: 'a'`, while  
+```python
+def g(x):
+ print(x)
+
+class C:
+ a=g
+
+c().a()
+```
+returns `<__main__.c object at ...>`
+
+This means, not all callables are binded --- only "functions" are. 
 
 ## todo
 - minipy interactive shell
