@@ -591,20 +591,22 @@ def reduce(content, content_types):
         raise SyntaxError(e_text)
     return content[0]
 
-def unexpectedIndent(cmd):
+UNEXPECTED = 'Unexpected'
+MISSING = 'Missing'
+WRONG = 'Wrong'
+def errorIndent(cmd, remark):
     raise IndentationError(
-        'Unexpected indentation @ line ' + str(cmd.line_number)
-    )
-def missingIndent(cmd):
-    raise IndentationError(
-        'Missing indentation @ line ' + str(cmd.line_number)
+        remark + ' indentation @ line ' + str(cmd.line_number)
     )
 
 class Sequence(list): 
     '''
     Sequence of cmdTrees. 
     '''
-    def parse(self, cmdsParser, first_cmd = None):
+    def parse(
+        self, cmdsParser, first_cmd = None, 
+        min_indent = None, 
+    ):
         indent_level = None
         cmd = first_cmd
         while True:
@@ -612,13 +614,17 @@ class Sequence(list):
                 try:
                     cmd : CmdTree = next(cmdsParser)
                 except StopIteration:
-                    return
+                    cmd = CmdTree()
+                    cmd.indent_level = -1
+                    return cmd
             if indent_level is None:
                 indent_level = cmd.indent_level
+                if min_indent is not None and indent_level < min_indent:
+                    errorIndent(cmd, MISSING)
             if cmd.indent_level < indent_level:
                 return cmd
             if cmd.indent_level > indent_level:
-                unexpectedIndent(cmd)
+                errorIndent(cmd, UNEXPECTED)
             try:
                 SubstructureClass = {
                     If: Conditional, 
@@ -641,9 +647,15 @@ class Sequence(list):
                 substructure = SubstructureClass()
                 cmd = substructure.parse(cmdsParser, cmd)
                 self.append(substructure)
+    
+    def pprint(self, depth = 0):
+        print(' ' * depth, '{', sep='')
+        for x in self:
+            x.pprint(depth + 1)
+        print(' ' * depth, '}', sep='')
 
 class Conditional: 
-    class Elif:
+    class _Elif:
         def __init__(self):
             self.condition : CmdTree = None
             self.then : Sequence = None
@@ -656,51 +668,201 @@ class Conditional:
     
     def parse(self, cmdsParser, first_cmd : CmdTree = None):
         self.condition = first_cmd
-        low_indent = first_cmd.indent_level
-        high_indent = None
-        for cmd in cmdsParser:
-            cmd : CmdTree
-            if high_indent is None:
-                high_indent = cmd.indent_level
-                if high_indent <= low_indent:
-                    missingIndent(cmd)
-            if cmd.indent_level > high_indent:
-                unexpectedIndent(cmd)
-            if cmd.indent_level < high_indent:
+        indent_level = first_cmd.indent_level
+        self.then = Sequence()
+        cmd = self.then.parse(
+            cmdsParser, 
+            min_indent = indent_level + 1,
+        )
+        if cmd.indent_level < indent_level:
+            return cmd
+        if cmd.indent_level > indent_level:
+            errorIndent(cmd, WRONG)
+        while cmd.type is Elif:
+            elIf = self._Elif()
+            elIf.condition = cmd
+            elIf.then = Sequence()
+            cmd = elIf.then.parse(
+                cmdsParser, min_indent = indent_level + 1,
+            )
+            self.elIfs.append(elIf)
+            if cmd.indent_level < indent_level:
                 return cmd
+            if cmd.indent_level > indent_level:
+                errorIndent(cmd, WRONG)
+        if cmd.type is Else:
+            self._else = Sequence()
+            cmd = self._else.parse(
+                cmdsParser, min_indent = indent_level + 1,
+            )
+            if cmd.indent_level > indent_level:
+                errorIndent(cmd, WRONG)
+        return cmd
+    
+    def pprint(self, depth = 0):
+        self.condition.pprint(depth)
+        self.then.pprint(depth)
+        for elIf in self.elIfs:
+            elIf.condition.pprint(depth)
+            elIf.then.pprint(depth)
+        if self._else is not None:
+            print(' ' * depth, 'else', sep='')
+            self._else.pprint(depth)
 
 class WhileLoop: 
     def __init__(self):
         self.condition : CmdTree = None
         self.body : Sequence = None
         self._else : Sequence = None
+    
+    def parse(self, cmdsParser, first_cmd : CmdTree = None):
+        self.condition = first_cmd
+        indent_level = first_cmd.indent_level
+        self.body = Sequence()
+        cmd = self.body.parse(
+            cmdsParser, min_indent = indent_level + 1, 
+        )
+        if cmd.indent_level < indent_level:
+            return cmd
+        if cmd.indent_level > indent_level:
+            errorIndent(cmd, WRONG)
+        if cmd.type is Else:
+            self._else = Sequence()
+            cmd = self._else.parse(
+                cmdsParser, min_indent = indent_level + 1,
+            )
+            if cmd.indent_level > indent_level:
+                errorIndent(cmd, WRONG)
+        return cmd
+
+    def pprint(self, depth = 0):
+        self.condition.pprint(depth)
+        self.body.pprint(depth)
+        if self._else is not None:
+            print(' ' * depth, 'else', sep='', end=' ')
+            self._else.pprint(depth)
+
 class ForLoop: 
     def __init__(self):
-        self._for : CmdTree = None
+        self.condition : CmdTree = None
         self.body : Sequence = None
         self._else : Sequence = None
+    
+    def parse(self, cmdsParser, first_cmd : CmdTree = None):
+        return WhileLoop.parse(self, cmdsParser, first_cmd)
+    def pprint(self, depth = 0):
+        return WhileLoop.pprint(self, depth)
+
 class TryExcept: 
     class OneCatch:
         def __init__(self):
             self.catching : CmdTree = None
             self.handler : Sequence = None
+    
     def __init__(self):
         self._try : Sequence = None
-        self.oneCatches : List[self.OneCatch]
+        self.oneCatches : List[self.OneCatch] = []
         self._else : Sequence = None
         self._finally : Sequence = None
+    
+    def parse(self, cmdsParser, first_cmd : CmdTree = None):
+        indent_level = first_cmd.indent_level
+        self._try = Sequence()
+        cmd = self._try.parse(
+            cmdsParser, 
+            min_indent = indent_level + 1,
+        )
+        if cmd.indent_level < indent_level:
+            return cmd
+        if cmd.indent_level > indent_level:
+            errorIndent(cmd, WRONG)
+        while cmd.type is Except:
+            oneCatch = self.OneCatch()
+            oneCatch.catching = cmd
+            oneCatch.handler = Sequence()
+            cmd = oneCatch.handler.parse(
+                cmdsParser, min_indent = indent_level + 1,
+            )
+            self.oneCatches.append(oneCatch)
+            if cmd.indent_level < indent_level:
+                return cmd
+            if cmd.indent_level > indent_level:
+                errorIndent(cmd, WRONG)
+        if cmd.type is Else:
+            self._else = Sequence()
+            cmd = self._else.parse(
+                cmdsParser, min_indent = indent_level + 1,
+            )
+            if cmd.indent_level < indent_level:
+                return cmd
+            if cmd.indent_level > indent_level:
+                errorIndent(cmd, WRONG)
+        if cmd.type is Finally:
+            self._finally = Sequence()
+            cmd = self._finally.parse(
+                cmdsParser, min_indent = indent_level + 1,
+            )
+            if cmd.indent_level > indent_level:
+                errorIndent(cmd, WRONG)
+        return cmd
+    
+    def pprint(self, depth = 0):
+        print(' ' * depth, 'try', sep='')
+        self._try.pprint(depth)
+        for oneCatch in self.oneCatches:
+            oneCatch.catching.pprint(depth)
+            oneCatch.handler.pprint(depth)
+        if self._else is not None:
+            print(' ' * depth, 'else', sep='')
+            self._else.pprint(depth)
+        if self._finally is not None:
+            print(' ' * depth, 'finally', sep='')
+            self._finally.pprint(depth)
+
 class FunctionDefinition:
     def __init__(self):
         self._def : CmdTree = None
         self.body : Sequence = None
+    
+    def parse(self, cmdsParser, first_cmd : CmdTree = None):
+        self._def = first_cmd
+        indent_level = first_cmd.indent_level
+        self.body = Sequence()
+        cmd = self.body.parse(
+            cmdsParser, min_indent = indent_level + 1, 
+        )
+        if cmd.indent_level > indent_level:
+            errorIndent(cmd, WRONG)
+        return cmd
+    
+    def pprint(self, depth = 0):
+        self._def.pprint(depth)
+        self.body.pprint(depth)
+
 class ClassDefinition:
     def __init__(self):
         self._class : CmdTree = None
         self.body : Sequence = None
+    
+    def parse(self, cmdsParser, first_cmd : CmdTree = None):
+        self._class = first_cmd
+        indent_level = first_cmd.indent_level
+        self.body = Sequence()
+        cmd = self.body.parse(
+            cmdsParser, min_indent = indent_level + 1, 
+        )
+        if cmd.indent_level > indent_level:
+            errorIndent(cmd, WRONG)
+        return cmd
+
+    def pprint(self, depth = 0):
+        self._class.pprint(depth)
+        self.body.pprint(depth)
 
 if __name__ == '__main__':
     from lexer import Lexer, LookAheadIO
     with open('test.minipy', 'r') as f:
         lexer = Lexer(LookAheadIO(f))
-        for cmdTree in CmdsParser(lexer):
-            cmdTree.pprint()
+        root = Sequence()
+        root.parse(CmdsParser(lexer))
+        root.pprint()

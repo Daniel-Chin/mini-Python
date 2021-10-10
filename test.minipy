@@ -68,9 +68,12 @@ class CarriageReturnDetected(Exception):
     This language does not allow the exiestence of  
     carriage return (CR, i.e. chr(13)).  
     '''
-class LexingNoMatch(Exception): pass
-class MixedTabsAndSpacesError(Exception): pass
-class ParseStringFailed(Exception): pass
+class LexingNoMatch(Exception): 
+    pass
+class MixedTabsAndSpacesError(Exception): 
+    pass
+class ParseStringFailed(Exception): 
+    pass
 
 class LookAheadIO:
     def __init__(self, file = None):

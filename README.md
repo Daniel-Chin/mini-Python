@@ -30,3 +30,4 @@ mini Python is a subset of Python. I wanna see if I can write a Python interpret
 - reraise exception with `raise`
 - yield
 - tuple cannot omit ()
+- multi commands cannot be on same line
