@@ -1,1 +1,8 @@
 to fix:
+
+todo:
+  evaluation of function should check:
+    optional arguments follow mandatory
+    no duplicate
+    evaluate default "thing"s
+  search todo
