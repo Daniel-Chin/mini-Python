@@ -1,4 +1,4 @@
-from runtime import Thing
+from runtime import Thing, instantiate
 
 def wrapFuncion(func):
     thing = Thing()
@@ -35,7 +35,7 @@ class Builtin:
     Exception._class = Class
     Exception.namespace['__name__'] = 'Exception'
     def initException(exception, *args):
-        exception.namespace['args'] = args
+        exception.namespace['args'] = instantiateTuple(*args)
     Exception.namespace['__init__'] = wrapFuncion(
         initException
     )
@@ -52,9 +52,15 @@ class Builtin:
     NameError.namespace['__base__'] = Exception
     NameError.namespace['__name__'] = 'NameError'
 
-    def __init__(self):
-        ...
-    
+    NoneType = Thing()
+    NoneType._class = Class
+    NoneType.namespace['__name__'] = 'NoneType'
+    NoneType.namespace['__repr__'] = wrapFuncion(
+        lambda _ : 'None'
+    )
+    __none__ = Thing()
+    __none__._class = NoneType
+
     def type(self, x : Thing):
         return x._class
 

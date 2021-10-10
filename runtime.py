@@ -18,11 +18,24 @@ class Thing:
         self.environment = []
         self.mst : FunctionDefinition = None
         self.default_args : Dict[str, Thing] = {}
+        self.bound_args = []
 
         # if it is a primitive
         self.primitive_value = None
     
+    def copy(self):
+        thing = Thing()
+        thing._class          = self._class
+        thing.namespace       = self.namespace
+        thing.environment     = self.environment
+        thing.mst             = self.mst
+        thing.default_args    = self.default_args
+        thing.bound_args      = self.bound_args
+        thing.primitive_value = self.primitive_value
+        return thing
+    
     def call(self, *args, **keyword_args):
+        args = self.bound_args + args
         if self._class is builtin.Function:
             return executeFunction(self, args, keyword_args)
         elif self._class is builtin.Class:
@@ -45,8 +58,9 @@ class Environment(list):
                 return namespace[name]
             except KeyError:
                 pass
-        raise Helicopter(NameError(f'name "{name}" is not defined.'))
-        # No! this needs to be an in-user exception. todo
+        raise Helicopter(instantiate(
+            builtin.NameError, f'name "{name}" is not defined.', 
+        ))
 
 class Helicopter(Exception): 
     def __init__(self, content = None):
@@ -70,8 +84,8 @@ def executeFunction(
         try:
             name = arg_names[i]
         except IndexError:
+            ...
             raise Helicopter
-            # todo
         argument_namespace[name] = thing
     if func.mst._def[i + 2].value is None:
         # not enough args. 
@@ -231,6 +245,7 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
                 thisClass = Thing()
                 thisClass._class = builtin.Class
                 thisClass.namespace['__base__'] = base
+                thisClass.namespace['__name__'] = identifier.value
                 executeSequence(
                     subBlock.body, 
                     [*environment, thisClass.namespace], 
@@ -268,7 +283,7 @@ def isSubclassOf(potentialSubclass : Thing, potentialBaseclass : Thing):
             return False
     return True
 
-def instantiate(theClass : Thing, args = [], keyword_args = {}):
+def instantiate(theClass : Thing, *args, **keyword_args):
     thing = Thing()
     thing._class = theClass
     baseclass = theClass
@@ -278,6 +293,16 @@ def instantiate(theClass : Thing, args = [], keyword_args = {}):
             if name == '__base__':
                 __base__ = value
             else:
-                if value._class is builtin.Function:
-                    
-    # inherit all methods from baseeclasees
+                if name not in thing.namespace:
+                    if value._class is builtin.Function:
+                        value = value.copy()
+                        value.bound_args.append(thing)
+                    thing.namespace[name] = value
+        if __base__ is None:
+            break
+        baseclass = __base__
+    returned = thing.namespace['__init__'].call(*args, **keyword_args)
+    if returned is not builtin.__none__:
+        ...
+        # init should not return non-None
+    return thing
