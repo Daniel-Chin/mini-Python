@@ -11,10 +11,12 @@ mini Python is a subset of Python. I wanna see if I can write a Python interpret
 - A sequence of cmd trees are parsed into an MST.  
 
 ### Runtime principles
-- A runtime is an MST and a stack of namespaces (local - nonlocal... - global).  
-- A module is a runtime. A function is a runtime.  
-- An Object is a namespace.  
+- Runtime is a sequence of configs. 
+- A config is (an MST AND a stack OF (Environment AND Program Counter (pointing to a location in MST))s.  
 - A namespace is a mapping from Identifier to Object. 
+- An Object is a namespace.  
+- A function is an MST and an Environment.  
+- An Environment is a stack of namespaces (local - nonlocal... - global). 
 
 ## What's missing
 - decorator
@@ -37,3 +39,7 @@ mini Python is a subset of Python. I wanna see if I can write a Python interpret
 - yield
 - tuple cannot omit ()
 - multi commands cannot be on same line
+
+## Things
+- Memory allocation and garbage collection are inherited from Python. 
+- Is minipy a secure sandbox? 
