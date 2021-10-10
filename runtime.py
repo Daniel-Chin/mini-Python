@@ -6,10 +6,11 @@ from .parser import (
     Conditional, WhileLoop, ForLoop, TryExcept, 
     FunctionDefinition, ClassDefinition, 
 )
+from builtin import builtin
 
 class Thing:
     def __init__(self) -> None:
-        self.type : Type = None
+        self._class : Thing = None
         self.namespace = {}
 
         # if it is a function
@@ -17,47 +18,21 @@ class Thing:
         self.mst : FunctionDefinition = None
         self.default_args : Dict[str, Thing] = {}
 
-        self.builtin_repr = None
-
         # if it is a primitive
         self.primitive_value = None
     
-    def call(self):
-        if self.type is Function:
-            ...
-        elif self.type is ThingTemplate:
+    def call(self, args = [], keyword_args = {}):
+        if self._class is builtin.Function:
+            return executeFunction(self, args, keyword_args)
+        elif self._class is builtin.Class:
             ...
         else: 
             try:
-                return self.environment['__call__'].call()
+                return self.namespace['__call__'].call(
+                    args, keyword_args, 
+                )
             except KeyError:
                 ...
-    
-    def repr(self):
-        if self.builtin_repr is None:
-            return self.namespace['__repr__'].call()
-        else:
-            return self.builtin_repr()
-
-class Type: pass
-class UserType(Type): 
-    def __init__(self) -> None:
-        self.thingTemplate : Thing = None
-class BuiltinType(Type): pass
-class Function(BuiltinType): pass
-class ThingTemplate(BuiltinType): pass
-
-class Helicopter(Exception): 
-    def __init__(self, content = None):
-        super().__init__()
-        self.content : Thing = content
-        self.stackOfStack = []
-        # Inner stack: stack trace. Outer stack: "During handling of the above exception"
-class ReturnAsException(Exception):
-    def __init__(self, content = None):
-        super().__init__()
-        self.content : Thing = content
-class BreakAsException(Exception): pass
 
 class Environment(list):
     def assign(self, name, value : Thing):
@@ -71,6 +46,18 @@ class Environment(list):
                 pass
         raise Helicopter(NameError(f'name "{name}" is not defined.'))
         # No! this needs to be an in-user exception. todo
+
+class Helicopter(Exception): 
+    def __init__(self, content = None):
+        super().__init__()
+        self.content : Thing = content
+        self.stackOfStack = []
+        # Inner stack: stack trace. Outer stack: "During handling of the above exception"
+class ReturnAsException(Exception):
+    def __init__(self, content = None):
+        super().__init__()
+        self.content : Thing = content
+class BreakAsException(Exception): pass
 
 def executeFunction(
     func : Thing, args : List[Thing], 
@@ -109,7 +96,7 @@ def executeScript(f):
     lexer = Lexer(LookAheadIO(f))
     root = Sequence()
     root.parse(CmdsParser(lexer))
-    namespace = builtinNamespace()
+    namespace = builtin.__dict__.copy()
     returned = executeSequence(root, [namespace])
     if returned is not None:
         # 'return' outside function
@@ -166,7 +153,7 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
                         try:
                             nextThing = theIter.namespace['__next__'].call()
                         except Helicopter as e:
-                            if e.content.type is builtin.StopIteration:
+                            if e.content._class is builtin.StopIteration:
                                 break
                             raise e
                         assignTo(nextThing, loopVar, environment)
@@ -180,20 +167,20 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
                 handlers = []
                 for oneCatch in subBlock.oneCatches:
                     catching = evalExpression(oneCatch.catching[0], environment)
-                    if catching.type is not ThingTemplate:
+                    if catching._class is not builtin.Class:
                         ...
-                        # cannot catch non-ThingTemplate
+                        # cannot catch non-class
                     handlers.append((catching, oneCatch.handler))
                 try:
                     executeSequence(subBlock._try, environment)
                 except Helicopter as e:
                     raised : Thing = e.content
-                    if raised.type is ThingTemplate:
-                        raisedThingTemplate = raised
+                    if raised._class is builtin.Class:
+                        raisedClass = raised
                     else:
-                        raisedThingTemplate = raised.type.thingTemplate
+                        raisedClass = raised._class
                     for catching, handler in handlers:
-                        if isSubclassOf(raisedThingTemplate, catching):
+                        if isSubclassOf(raisedClass, catching):
                             executeSequence(handler, environment)
                             break
                     else:
@@ -208,7 +195,7 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
                 subBlock : FunctionDefinition
                 identifier, *args = subBlock._def
                 func = Thing()
-                func.type = Function
+                func._class = builtin.Function
                 func.environment = environment
                 func.mst = subBlock
                 arg_names = set()
@@ -233,27 +220,30 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
                 subBlock : ClassDefinition
                 identifier, expressionTree = subBlock._class
                 base = evalExpression(expressionTree, environment)
-                if base.type is not ThingTemplate:
+                if base._class is not builtin.Class:
                     ...
                     # cannot inherit from a non-class
-                thingTemplate = Thing()
-                thingTemplate.type = ThingTemplate
-                thingTemplate.namespace['__base__'] = base
+                thisClass = Thing()
+                thisClass._class = builtin.Class
+                thisClass.namespace['__base__'] = base
                 executeSequence(
                     subBlock.body, 
-                    [*environment, thingTemplate.namespace], 
+                    [*environment, thisClass.namespace], 
                 )
-                assignTo(thingTemplate, identifier, environment)
+                assignTo(thisClass, identifier, environment)
         except ReturnAsException as e:
             return e.content
         except Helicopter as e:
             ...
 
 def isTrue(thing : Thing) -> bool:
-    return thing.namespace['__bool__'].call() is builtin.true
+    return thing.namespace['__bool__'].call() is builtin.__true__
 
-def evalExpression(expressionTree, environment) -> Thing:
+def evalExpression(expressionTree, environment : Environment) -> Thing:
     ...
+
+def executeCmdTree(cmdTree : CmdTree, environment : Environment):
+    pass
 
 def assignTo(
     thing : Thing, slot, 
@@ -268,11 +258,13 @@ def assignTo(
             'Cannot assign to non-Identifier non-ExpressionTree. '
         )
 
-def isSubclassOf(subType : Type, baseType : Type):
-    try:
-        subType.thingTemplate
-        ...
-        # check for userType inheritance
-    except AttributeError:
-        ...
-        # check for builtintype inheritance
+def isSubclassOf(potentialSubclass : Thing, potentialBaseclass : Thing):
+    cursor = potentialSubclass
+    while cursor is not potentialBaseclass:
+        try:
+            cursor = cursor.namespace['__base__']
+            if cursor is not Thing:
+                raise KeyError
+        except KeyError:
+            return False
+    return True

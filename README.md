@@ -28,7 +28,9 @@ How to error-time output stack? define exception?
 - Executing an MST evolves an Environment. 
 - An Environment is a stack of namespaces (local - nonlocal... - global). 
 - A function has an MST and an Environment.  
-- A function is a Thing. A function's `__call__` is a wrapper to itself. 
+- A function is a Thing. 
+- type(thing) -> thingTemplate
+- class.__base__ = None | class
 
 ## What's missing
 - decorator
@@ -56,11 +58,23 @@ How to error-time output stack? define exception?
 - `except (Exc1, Exc2):` is not allowed. 
 - `isinstanceof` is intentionally not exposed. 
 - you can `raise` non-exception things. 
-- `ThingTemplate` cannot be extended. If you try, undefined behaviors. 
+- There's no `BaseException`. just use `Exception`. 
+- `object` class is not exposed. 
 
-## Things
+## Remarks
 - Memory allocation and garbage collection are inherited from Python. 
 - Is minipy a secure sandbox? 
+
+### class thing
+```python
+class c:
+ def print(x):
+  print(x+1)
+
+ print(3)
+```
+prints "4" in Python.  
+I have no idea what they did. 
 
 ## todo
 - minipy interactive shell
