@@ -25,6 +25,8 @@ class Thing:
     def call(self):
         if self.type is Function:
             ...
+        elif self.type is ThingTemplate:
+            ...
         else: 
             try:
                 return self.environment['__call__'].call()
@@ -227,6 +229,21 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
                         defaultThing = evalExpression(arg.value, environment)
                         func.default_args[name] = defaultThing
                 assignTo(func, identifier, environment)
+            elif type(subBlock) is ClassDefinition:
+                subBlock : ClassDefinition
+                identifier, expressionTree = subBlock._class
+                base = evalExpression(expressionTree, environment)
+                if base.type is not ThingTemplate:
+                    ...
+                    # cannot inherit from a non-class
+                thingTemplate = Thing()
+                thingTemplate.type = ThingTemplate
+                thingTemplate.namespace['__base__'] = base
+                executeSequence(
+                    subBlock.body, 
+                    [*environment, thingTemplate.namespace], 
+                )
+                assignTo(thingTemplate, identifier, environment)
         except ReturnAsException as e:
             return e.content
         except Helicopter as e:

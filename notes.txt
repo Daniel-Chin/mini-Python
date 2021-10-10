@@ -1,5 +1,7 @@
 to fix:
 
 todo:
+  user exception type
+  helicopter stacking
 
 search todo and ...
