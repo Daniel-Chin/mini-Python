@@ -7,7 +7,6 @@ mini Python is a subset of Python. I wanna see if I can write a Python interpret
 ### Parsing principles
 - An expression (can be multiline) is parsed into an expression tree.  
 - A cmd (can be multiline) is parsed into a cmd tree.  
-- A multi-line cmd must have at least one unclosed bracket/parenthesis in every line except its last line.  
 - A sequence of cmd trees are parsed into an MST.  
 
 ### Runtime principles: State Machine Version
@@ -59,6 +58,7 @@ How to error-time output stack? define exception?
 - `10e-5`
 
 ## what's different
+- A multi-line cmd must have at least one unclosed bracket/parenthesis in every line except its last line.  
 - Some builtin attributes are read-only in Python. They can be modified by user in miniPy. 
 - `isinstanceof` is intentionally not exposed. 
 - you can `raise` non-exception things. 

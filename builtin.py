@@ -1,4 +1,4 @@
-from runtime import Helicopter, Thing, instantiate
+from runtime import Helicopter, Thing, instantiate, unprimitize
 
 def wrapFuncion(func):
     thing = Thing()
@@ -82,6 +82,10 @@ class Builtin:
     KeyError._class = Class
     KeyError.namespace['__base__'] = Exception
     KeyError.namespace['__name__'] = 'KeyError'
+    AttributeError = Thing()
+    AttributeError._class = Class
+    AttributeError.namespace['__base__'] = Exception
+    AttributeError.namespace['__name__'] = 'AttributeError'
 
     NoneType = Thing()
     NoneType._class = Class
@@ -144,6 +148,20 @@ class Builtin:
                 }" cannot multiply "{builtin.repr.call(b._class)}"'''
             ))
     int.namespace['__mul__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
+    def tempFunc(a, b):
+        thing = instantiate(a._class)
+        try:
+            thing.primitive_value = a.primitive_value / b.primitive_value
+        except TypeError:
+            raise Helicopter(instantiate(
+                builtin.TypeError, f'''"{
+                    builtin.repr.call(a._class)
+                }" cannot divide "{builtin.repr.call(b._class)}"'''
+            ))
+    int.namespace['__truediv__'] = wrapFuncion(
         tempFunc
     )
     del tempFunc
@@ -289,9 +307,12 @@ class Builtin:
     del tempFunc
     def tempFunc(listSelf, index):
         try:
-            return listSelf.primitive_value[
+            result = listSelf.primitive_value[
                 index.primitive_value
             ]
+            if type(result) is Thing:
+                return result
+            return unprimitize(result)
         except TypeError:
             raise Helicopter(instantiate(
                 builtin.TypeError, f'''"{
@@ -318,15 +339,22 @@ class Builtin:
         t = []
         for x in slice_as_tuple.primitive_value:
             t.append(x.primitive_value)
-        try:
-            return listSelf.primitive_value[
-                slice(*t)
-            ]
-        except TypeError:
-            raise Helicopter(instantiate(builtin.TypeError))
-        except IndexError:
-            raise Helicopter(instantiate(builtin.IndexError))
+        result = listSelf.primitive_value[
+            slice(*t)
+        ]
+        return instantiate(listSelf._class, (
+            x if type(x) is Thing else unprimitize(x)
+            for x in result
+        ))
     list.namespace['__slice__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
+    def tempFunc(listSelf, element):
+        if element in listSelf.primitive_value:
+            return builtin.__true__
+        return builtin.__false__
+    list.namespace['__contains__'] = wrapFuncion(
         tempFunc
     )
     del tempFunc

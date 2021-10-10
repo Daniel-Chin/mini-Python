@@ -314,3 +314,17 @@ def instantiate(theClass : Thing, *args, **keyword_args):
         ...
         # init should not return non-None
     return thing
+
+def unprimitize(primitive):
+    if type(primitive) is int:
+        return instantiate(builtin.int, primitive)
+    elif type(primitive) is float:
+        return instantiate(builtin.float, primitive)
+    elif type(primitive) is str:
+        return instantiate(builtin.str, primitive)
+    elif type(primitive) is bool:
+        if primitive:
+            return builtin.__true__
+        return builtin.__false__
+    elif type(primitive) is type(None):
+        return builtin.__none__
