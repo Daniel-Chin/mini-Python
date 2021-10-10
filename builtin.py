@@ -7,5 +7,5 @@ def _type(x : Thing):
         # builtin type
         y = Thing()
         y.type = ThingTemplate
-        y.namespace['__repr__'] = f'<builtin class "{x.type.__name__}">'
+        y.builtin_repr = lambda: f'<builtin class "{x.type.__name__}">'
         return y

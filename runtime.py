@@ -6,6 +6,8 @@ class Thing:
         # if it is a function
         self.environment = []
         self.mst = None
+
+        self.builtin_repr = None
     
     def call(self):
         if self.type is Function:
@@ -15,6 +17,12 @@ class Thing:
                 return self.environment['__call__'].call()
             except KeyError:
                 ...
+    
+    def repr(self):
+        if self.builtin_repr is None:
+            return self.namespace['__repr__'].call()
+        else:
+            return self.builtin_repr()
 
 class Type: pass
 class UserType(Type): 
