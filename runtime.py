@@ -48,7 +48,7 @@ class Thing:
             except KeyError:
                 raise Helicopter(instantiate(
                     builtin.TypeError, 
-                    f'{builtin.repr(self)} is not callable.', 
+                    f'{builtin.repr.call(self)} is not callable.', 
                 ))
 
 class Environment(list):

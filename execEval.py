@@ -42,9 +42,7 @@ def evalExpression(
             evalExpression(x, environment) for x in eTree
         ])
     elif eTree.type is SetDisplay:
-        return instantiate(builtin.set, set(
-            evalExpression(x, environment) for x in eTree
-        ))
+        ...
     elif eTree.type is DictDisplay:
         d = {}
         for key, value in eTree:
@@ -76,5 +74,12 @@ def evalExpression(
                     funcArg.value, environment, 
                 )
         return evalExpression(calleeExpr).call(*args, **keyword_args)
+
 def executeCmdTree(cmdTree : CmdTree, environment : Environment):
     pass
+
+def isSame(a : Thing, b : Thing):
+    if a is b:
+        return True
+    if a.primitive_value is not None and b.primitive_value is not None:
+        return a.primitive_value is b.primitive_value

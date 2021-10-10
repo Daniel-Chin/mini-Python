@@ -4,6 +4,7 @@ def wrapFuncion(func):
     thing = Thing()
     thing._class = builtin.Function
     thing.call = func
+    return thing
 
 class Builtin:
     Class = Thing()
@@ -15,9 +16,16 @@ class Builtin:
     Class.namespace['__init__'] = wrapFuncion(
         lambda _ : None
     )
-
-    def repr(self, x : Thing):
-        return x._class.namespace['__repr__'].call(x)
+    def tempFunc(a):
+        if a.primitive_value is not None:
+            return hash(a.primitive_value)
+        else:
+            ...
+            # unhashable type
+    Class.namespace['__hash__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
 
     Function = Thing()
     Function._class = Class
@@ -41,13 +49,15 @@ class Builtin:
     Exception._class = Class
     Exception.namespace['__name__'] = 'Exception'
     def tempFunc(exception, *args):
-        exception.namespace['args'] = instantiateTuple(*args)
+        exception.namespace['args'] = instantiate(
+            builtin.tuple, args, 
+        )
     Exception.namespace['__init__'] = wrapFuncion(
         tempFunc
     )
     del tempFunc
     Exception.namespace['__repr__'] = wrapFuncion(
-        lambda self : self.namespace['__name__'] + builtin.repr(self.args)
+        lambda self : self.namespace['__name__'] + builtin.repr.call(self.args)
     )
 
     StopIteration = Thing()
@@ -91,8 +101,8 @@ class Builtin:
         except TypeError:
             raise Helicopter(instantiate(
                 builtin.TypeError, f'''"{
-                    builtin.repr(a._class)
-                }" cannot add "{builtin.repr(b._class)}"'''
+                    builtin.repr.call(a._class)
+                }" cannot add "{builtin.repr.call(b._class)}"'''
             ))
     int.namespace['__add__'] = wrapFuncion(
         tempFunc
@@ -105,8 +115,8 @@ class Builtin:
         except TypeError:
             raise Helicopter(instantiate(
                 builtin.TypeError, f'''"{
-                    builtin.repr(a._class)
-                }" cannot mod "{builtin.repr(b._class)}"'''
+                    builtin.repr.call(a._class)
+                }" cannot mod "{builtin.repr.call(b._class)}"'''
             ))
     int.namespace['__mod__'] = wrapFuncion(
         tempFunc
@@ -119,8 +129,8 @@ class Builtin:
         except TypeError:
             raise Helicopter(instantiate(
                 builtin.TypeError, f'''"{
-                    builtin.repr(a._class)
-                }" cannot multiply "{builtin.repr(b._class)}"'''
+                    builtin.repr.call(a._class)
+                }" cannot multiply "{builtin.repr.call(b._class)}"'''
             ))
     int.namespace['__mul__'] = wrapFuncion(
         tempFunc
@@ -133,8 +143,8 @@ class Builtin:
         except TypeError:
             raise Helicopter(instantiate(
                 builtin.TypeError, f'''"{
-                    builtin.repr(a._class)
-                }" cannot power "{builtin.repr(b._class)}"'''
+                    builtin.repr.call(a._class)
+                }" cannot power "{builtin.repr.call(b._class)}"'''
             ))
     int.namespace['__pow__'] = wrapFuncion(
         tempFunc
@@ -147,7 +157,7 @@ class Builtin:
         except TypeError:
             raise Helicopter(instantiate(
                 builtin.TypeError, f'''"{
-                    builtin.repr(a._class)
+                    builtin.repr.call(a._class)
                 }" cannot be negated. '''
             ))
     int.namespace['__neg__'] = wrapFuncion(
@@ -225,7 +235,7 @@ class Builtin:
     list.namespace = int.namespace.copy()
     list.namespace['__name__'] = 'list'
     def tempFunc(intSelf, x = []):
-        intSelf.primitive_value = x.copy()
+        intSelf.primitive_value = list(x)
     int.namespace['__init__'] = wrapFuncion(
         tempFunc
     )
@@ -236,7 +246,7 @@ class Builtin:
     tuple.namespace = int.namespace.copy()
     tuple.namespace['__name__'] = 'tuple'
     def tempFunc(intSelf, x = ()):
-        intSelf.primitive_value = x
+        intSelf.primitive_value = tuple(x)
     int.namespace['__init__'] = wrapFuncion(
         tempFunc
     )
@@ -258,13 +268,22 @@ class Builtin:
     set.namespace = int.namespace.copy()
     set.namespace['__name__'] = 'set'
     def tempFunc(intSelf, x = set()):
-        intSelf.primitive_value = x.copy()
+        intSelf.primitive_value = set(x)
     int.namespace['__init__'] = wrapFuncion(
         tempFunc
     )
     del tempFunc
 
+    @wrapFuncion
     def type(self, x : Thing):
         return x._class
+    
+    @wrapFuncion
+    def hash(self, x : Thing):
+        return x.namespace['__hash__'].call()
+    
+    @wrapFuncion
+    def repr(self, x : Thing):
+        return x._class.namespace['__repr__'].call(x)
 
 builtin = Builtin()
