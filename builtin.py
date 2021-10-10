@@ -78,6 +78,12 @@ class Builtin:
     int.namespace['__repr__'] = wrapFuncion(
         lambda self : repr(self.primitive_value)
     )
+    def tempFunc(intSelf, x = 0):
+        intSelf.primitive_value = x
+    int.namespace['__init__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
     def tempFunc(a, b):
         thing = instantiate(a._class)
         try:
@@ -196,31 +202,67 @@ class Builtin:
     float._class = Class
     float.namespace = int.namespace.copy()
     float.namespace['__name__'] = 'float'
+    def tempFunc(intSelf, x = 0.):
+        intSelf.primitive_value = x
+    int.namespace['__init__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
 
     str = Thing()
     str._class = Class
     str.namespace = int.namespace.copy()
     str.namespace['__name__'] = 'str'
+    def tempFunc(intSelf, x = ''):
+        intSelf.primitive_value = x
+    int.namespace['__init__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
 
     list = Thing()
     list._class = Class
     list.namespace = int.namespace.copy()
     list.namespace['__name__'] = 'list'
+    def tempFunc(intSelf, x = []):
+        intSelf.primitive_value = x.copy()
+    int.namespace['__init__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
 
     tuple = Thing()
     tuple._class = Class
     tuple.namespace = int.namespace.copy()
     tuple.namespace['__name__'] = 'tuple'
+    def tempFunc(intSelf, x = ()):
+        intSelf.primitive_value = x
+    int.namespace['__init__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
 
     dict = Thing()
     dict._class = Class
     dict.namespace = int.namespace.copy()
     dict.namespace['__name__'] = 'dict'
+    def tempFunc(intSelf, x = {}):
+        intSelf.primitive_value = x.copy()
+    int.namespace['__init__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
 
     set = Thing()
     set._class = Class
     set.namespace = int.namespace.copy()
     set.namespace['__name__'] = 'set'
+    def tempFunc(intSelf, x = set()):
+        intSelf.primitive_value = x.copy()
+    int.namespace['__init__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
 
     def type(self, x : Thing):
         return x._class

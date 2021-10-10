@@ -52,10 +52,10 @@ class Thing:
                 ))
 
 class Environment(list):
-    def assign(self, name, value : Thing):
+    def assign(self, name : str, value : Thing):
         self[-1][name] = value
     
-    def read(self, name):
+    def read(self, name : str):
         for namespace in reversed(self):
             try:
                 return namespace[name]
