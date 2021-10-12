@@ -356,7 +356,10 @@ class RunTime:
         return self._modules[filename]
 
     def isImportCircular(self, name):
-        return name in [x.name for x in self.nowImportJobs]
+        filename = self.resolveName(name)
+        return filename in [
+            x.filename for x in self.nowImportJobs
+        ]
 
     def imPort(self, name, __Name__):
         filename = self.resolveName(name)
