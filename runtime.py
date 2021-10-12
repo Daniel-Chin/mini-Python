@@ -109,7 +109,7 @@ def executeFunction(
         [*func.environment, argument_namespace], 
     )
 
-def executeScript(f):
+def executeScript(f) -> dict:
     lexer = Lexer(LookAheadIO(f))
     root = Sequence()
     root.parse(CmdsParser(lexer))
@@ -118,6 +118,7 @@ def executeScript(f):
     if returned is not None:
         # 'return' outside function
         ...
+    return namespace
 
 def executeSequence(sequence : Sequence, environment) -> Thing:
     for subBlock in sequence:

@@ -1,6 +1,6 @@
 from runtime import (
     Environment, Helicopter, Thing, assignTo, instantiate, 
-    isTrue, ThingIter, isSame, 
+    isTrue, ThingIter, isSame, executeScript, 
 )
 from lexems import Identifier
 from lexer import *
@@ -228,7 +228,8 @@ def evalExpression(
         )))
 
 def executeCmdTree(cmdTree : CmdTree, environment : Environment):
-    pass
+    if cmdTree.type in (From, Import):
+        newNamespace = executeScript
 
 def assignTo(
     thing : Thing, slot, 
