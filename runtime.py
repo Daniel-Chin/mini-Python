@@ -146,7 +146,12 @@ def executeSequence(
     for subBlock in sequence:
         try:
             if type(subBlock) is CmdTree:
-                executeCmdTree(runTime, subBlock, environment)
+                try:
+                    executeCmdTree(runTime, subBlock, environment)
+                except KeyboardInterrupt:
+                    raise Helicopter(instantiate(
+                        builtin.KeyboardInterrupt
+                    ))
             elif type(subBlock) is Conditional:
                 subBlock : Conditional
                 condition = evalExpression(

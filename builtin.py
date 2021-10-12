@@ -90,6 +90,10 @@ class Builtin:
     ImportError._class = Class
     ImportError.namespace['__base__'] = Exception
     ImportError.namespace['__name__'] = 'ImportError'
+    KeyboardInterrupt = Thing()
+    KeyboardInterrupt._class = Class
+    KeyboardInterrupt.namespace['__base__'] = Exception
+    KeyboardInterrupt.namespace['__name__'] = 'KeyboardInterrupt'
 
     NoneType = Thing()
     NoneType._class = Class
