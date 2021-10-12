@@ -328,8 +328,8 @@ class RunTime:
             self.namespace = namespace
             self.onDone = []
 
-    def __init__(self, entry_filename):
-        self.dir_location = os.path.dirname(entry_filename)
+    def __init__(self, dir_location):
+        self.dir_location = dir_location
         self.minipypaths = [*reversed(os.environ.get(
             'MINIPYPATH', '', 
         ).split(';'))]
