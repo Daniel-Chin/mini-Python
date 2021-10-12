@@ -13,7 +13,7 @@ from parSer import (
     DictDisplay, SetDisplay, ListDisplay, Indexing, Slicing, 
     Binary, Unary, Attributing, ListComp, UnaryNegate, 
 )
-from builtin import builtin, instantiate, isTrue
+from builtin import builtin, instantiate, isTrue, unprimitize
 
 class NULL: pass
 
@@ -54,10 +54,10 @@ class Thing:
                     *args, **keyword_args, 
                 )
             except KeyError:
-                raise Helicopter(instantiate(
+                raise Helicopter(
                     builtin.TypeError, 
                     f'{builtin.repr.call(self)} is not callable.', 
-                ))
+                )
 
 class Namespace(dict):
     def __init__(self):
@@ -69,18 +69,18 @@ class Namespace(dict):
     
     def __getitem__(self, key):
         if key in self.forbidden:
-            raise Helicopter(instantiate(
+            raise Helicopter(
                 builtin.ImportError, 
-                f'Accessing evaluation-postponed variable "{key}" during circular import.'
-            ))
+                f'Accessing evaluation-postponed variable "{key}" during circular import.', 
+            )
         else:
             try:
                 return super().__getitem__(key)
             except KeyError:
-                raise Helicopter(instantiate(
+                raise Helicopter(
                     builtin.NameError, 
                     f'Name "{key}" is not defined.', 
-                ))
+                )
     
     def __setitem__(self, key, value) -> None:
         try:
@@ -99,18 +99,21 @@ class Environment(list):
                 return namespace[name]
             except KeyError:
                 pass
-        raise Helicopter(instantiate(
+        raise Helicopter(
             builtin.NameError, f'name "{name}" is not defined.', 
-        ))
+        )
     
     def delete(self, name : str):
         # raises KeyError
         self[-1].pop(name)
 
 class Helicopter(Exception): 
-    def __init__(self, content = None):
+    def __init__(self, minipyException, remark):
         super().__init__()
-        self.content : Thing = content
+        self.content : Thing = instantiate(
+            minipyException, 
+            unprimitize(remark), 
+        )
         self.stack = []
         self.during = None
 class ReturnAsException(Exception):
@@ -162,9 +165,9 @@ def executeSequence(
                 try:
                     executeCmdTree(runTime, subBlock, environment)
                 except KeyboardInterrupt:
-                    raise Helicopter(instantiate(
+                    raise Helicopter(
                         builtin.KeyboardInterrupt
-                    ))
+                    )
             elif type(subBlock) is Conditional:
                 subBlock : Conditional
                 condition = evalExpression(
@@ -351,12 +354,12 @@ class RunTime:
             if filename in os.listdir(os.path.dirname(filename)):
                 return os.path.normpath(filename)
         else:
-            raise Helicopter(instantiate(
+            raise Helicopter(
                 builtin.ImportError, 
                 f'Script "{name}" not found. Hint: ' 
                 + 'Name is case-sensitive. ".minipy" ' 
                 + 'extension is also case-sensitive.'
-            ))
+            )
     
     def getModule(self, name):
         filename = self.resolveName(name)
@@ -411,11 +414,11 @@ def evalExpression(
             lexem = eTree[0]
             if type(lexem) is Num:
                 if '.' in lexem.value:
-                    thing = instantiate(builtin.float, float(lexem.value))
+                    thing = unprimitize(float(lexem.value))
                 else:
-                    thing = instantiate(builtin.int, int(lexem.value))
+                    thing = unprimitize(int(lexem.value))
             elif type(lexem) is String:
-                thing = instantiate(builtin.str, lexem.value)
+                thing = unprimitize(lexem.value)
             elif type(lexem) is Boolean:
                 if lexem.value:
                     thing = builtin.__true__
@@ -429,11 +432,11 @@ def evalExpression(
         elif eTree.type is Parened:
             return evalExpression(eTree[0], environment)
         elif eTree.type is TupleDisplay:
-            return instantiate(builtin.tuple, tuple(
+            return unprimitize(tuple(
                 evalExpression(x, environment) for x in eTree
             ))
         elif eTree.type is ListDisplay:
-            return instantiate(builtin.list, [
+            return unprimitize([
                 evalExpression(x, environment) for x in eTree
             ])
         elif eTree.type is SetDisplay:
@@ -445,7 +448,7 @@ def evalExpression(
                 else:
                     key = thing.primitive_value
                 s.add(key)
-            return instantiate(builtin.set, s)
+            return unprimitize(s)
         elif eTree.type is DictDisplay:
             d = {}
             for keyTree, valueTree in eTree:
@@ -494,7 +497,7 @@ def evalExpression(
             step = evalExpression(eTree[3], environment)
             try:
                 return slicee.namespace['__getslice__'].call(
-                    instantiate(builtin.tuple, (start, end, step))
+                    unprimitize((start, end, step))
                 )
             except KeyError:
                 raise NameSpaceKeyError('slicing')
@@ -588,11 +591,12 @@ def evalExpression(
             try:
                 return thing.namespace[name]
             except KeyError:
-                raise Helicopter(instantiate(builtin.AttributeError(
+                raise Helicopter(
+                    builtin.AttributeError, 
                     f'''{
                         thing._class.namespace["__name__"].primitive_value
                     } object does not have "{name}"'''
-                )))
+                )
         elif eTree.type is ListComp:
             yTree = eTree[0]
             xTree = eTree[1]
@@ -608,12 +612,13 @@ def evalExpression(
                 assignTo(nextThing, xTree, tempEnv)
                 if isTrue(evalExpression(conditionTree, tempEnv)):
                     buffer.append(evalExpression(yTree, tempEnv))
-            return instantiate(builtin.list, buffer)
+            return unprimitize(buffer)
 
     except NameSpaceKeyError as e:
-        raise Helicopter(instantiate(builtin.TypeError(
-            f'"{e.args[0]}" not supported.'
-        )))
+        raise Helicopter(
+            builtin.TypeError, 
+            f'"{e.args[0]}" not supported.', 
+        )
 
 def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environment):
     if cmdTree.type in (From, Import):
@@ -625,10 +630,10 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
             lexem_types = [type(x) for x in lexems]
             if Times in lexem_types:
                 if len(lexems) != 1:
-                    raise Helicopter(instantiate(
+                    raise Helicopter(
                         builtin.ImportError, 
-                        'importing other things with "*"'
-                    ))
+                        'importing other things with "*"', 
+                    )
                 targets = '*'
             else:
                 assert all([x is Identifier for x in lexem_types])
@@ -641,10 +646,10 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
                 forbid(name)
             elif cmdTree.type is From:
                 if targets == '*':
-                    raise Helicopter(instantiate(
+                    raise Helicopter(
                         builtin.ImportError, 
-                        'Circular import does not support "*".'
-                    ))
+                        'Circular import does not support "*".', 
+                    )
                 else:
                     for target in targets:
                         forbid(target)
@@ -695,11 +700,11 @@ def parsePackaging(eTree : ExpressionTree):
     if eTree.type is Attributing:
         return parsePackaging(eTree[0]) + '.' + eTree[1].value
     else:
-        raise Helicopter(instantiate(
+        raise Helicopter(
             builtin.ImportError, 
             'Script path must be identifiers seperated by ".", '
             + f'but encountered "{eTree.type.__name__}".', 
-        ))
+        )
 
 class Undefined:
     def __iter__(self):

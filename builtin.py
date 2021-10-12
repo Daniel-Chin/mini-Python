@@ -56,10 +56,10 @@ def wrapFuncion(func):
             return func(*args, **kw)
         except TypeError as e:
             if 'argument' in e.args[0].lower():
-                raise rt.Helicopter(instantiate(
+                raise rt.Helicopter(
                     builtin.TypeError, 
-                    'Builtin function ' + str(e)
-                ))
+                    'Builtin function ' + str(e), 
+                )
             else:
                 raise e
     thing.call = wrapped
@@ -79,10 +79,10 @@ def wrapClass(base = None):
     return _wrapClass
 
 def promotePythonException(e):
-    raise rt.Helicopter(instantiate(
+    raise rt.Helicopter(
         builtin.PythonException, 
         repr(e), 
-    ))
+    )
 
 class builtin:
     Class = rt.Thing()
@@ -93,7 +93,7 @@ class builtin:
     )
     Class.namespace['__str__'] = Class.namespace['__repr__']
     Class.namespace['__dict__'] = wrapFuncion(
-        lambda self : instantiate(builtin.dict, self.namespace)
+        lambda self : unprimitize(self.namespace)
     )
 
     @wrapClass()
@@ -145,9 +145,7 @@ class builtin:
     class Exception:
         @wrapFuncion
         def __init__(thing, *args):
-            thing.namespace['args'] = instantiate(
-                builtin.tuple, args, 
-            )
+            thing.namespace['args'] = unprimitize(args)
         
         @wrapFuncion
         def __repr__(thing):
@@ -399,6 +397,18 @@ class builtin:
             thing.namespace['stop']  = unprimitize(stop )
     
     @wrapClass(base = GenericPrimitive)
+    class ItemContainers:
+        @wrapFuncion
+        def __getitem__(thing, theSlice):
+            try:
+                primitive_result = thing.primitive_value[
+                    theSlice.primitive_value
+                ]
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_result)
+    
+    @wrapClass(base = ItemContainers)
     class list:
         @wrapFuncion
         def __init__(thing, x = None):
