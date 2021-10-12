@@ -1,421 +1,176 @@
-from runtime import Helicopter, Thing, instantiate, unprimitize
+from __future__ import annotations
+from lexems import Except
+import runtime as rt
 
-def wrapFuncion(func):
-    thing = Thing()
-    thing._class = builtin.Function
-    thing.call = func
+def instantiate(theClass : rt.Thing, *args, **keyword_args):
+    thing = rt.Thing()
+    thing._class = theClass
+    baseclass = theClass
+    while True:
+        __base__ = None
+        for name, value in baseclass.namepsace.items():
+            if name == '__base__':
+                __base__ = value
+            else:
+                if (
+                    name not in thing.namespace
+                    and name not in ('__name__', '__repr__')
+                ):
+                    if value._class is builtin.Function:
+                        value = value.copy()
+                        value.bound_args.append(thing)
+                    thing.namespace[name] = value
+        if __base__ is None:
+            break
+        baseclass = __base__
+    if '__init__' in thing.namespace:
+        returned = thing.namespace['__init__'].call(*args, **keyword_args)
+        if returned is not builtin.__none__:
+            ...
+            # init should not return non-None
     return thing
 
-class Builtin:
-    Class = Thing()
+def unprimitize(primitive):
+    if type(primitive) is int:
+        return instantiate(builtin.int, primitive)
+    elif type(primitive) is float:
+        return instantiate(builtin.float, primitive)
+    elif type(primitive) is str:
+        return instantiate(builtin.str, primitive)
+    elif type(primitive) is bool:
+        if primitive:
+            return builtin.__true__
+        return builtin.__false__
+    elif type(primitive) is type(None):
+        return builtin.__none__
+
+def isTrue(thing : rt.Thing) -> bool:
+    if thing.namespace['__bool__'].call().primitive_value:
+        return builtin.__true__
+    return builtin.__false__
+
+def wrapFuncion(func):
+    thing = instantiate(builtin.Function)
+    thing.call = func
+    thing.namespace['__name__'] = '(builtin) ' + func.__name__
+    return thing
+
+def wrapClass(base = None):
+    def _wrapClass(cls):
+        thing = instantiate(builtin.Class)
+        for key, value in cls.__dict__.items():
+            print('   ', key)
+            thing.namespace[key] = value
+        thing.namespace['__name__'] = cls.__name__
+        if base is not None:
+            thing.namespace['__base__'] = base
+        return thing
+    return _wrapClass
+
+def promotePythonException(e):
+    raise rt.Helicopter(instantiate(
+        builtin.PythonException, 
+        repr(e), 
+    ))
+
+class builtin:
+    Class = rt.Thing()
     Class._class = Class
     Class.namespace['__name__'] = 'Class'
     Class.namespace['__repr__'] = wrapFuncion(
         lambda self : f'<class "{self.namespace["__name__"]}">'
     )
-    Class.namespace['__init__'] = wrapFuncion(
-        lambda _ : None
+    Class.namespace['__dict__'] = wrapFuncion(
+        lambda self : instantiate(builtin.dict, self.namespace)
     )
-    def tempFunc(a):
-        if a.primitive_value is not None:
-            try:
-                return hash(a.primitive_value)
-            except TypeError:
-                pass
-        ...
-        # unhashable type
-    Class.namespace['__hash__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
 
-    Function = Thing()
-    Function._class = Class
-    Function.namespace['__name__'] = 'Function'
-
-    bool = Thing()
-    bool._class = Class
-    bool.namespace['__name__'] = 'bool'
-    bool.namespace['__repr__'] = wrapFuncion(
-        lambda self : 'True' if self is builtin.__true__ else 'False'
-    )
-    bool.namespace['__bool__'] = wrapFuncion(
-        lambda self : self
-    )
+    @wrapClass()
+    class Function:
+        @wrapFuncion
+        def __repr__(thing):
+            try: 
+                name = thing.namespace['__name__']
+            except KeyError:
+                name = ''
+            return unprimitize(f'<function {name}>')
+    
+    @wrapClass()
+    class bool:
+        @wrapFuncion
+        def __init__(thing, x = None):
+            if x is None:
+                thing.primitive_value = False
+            else:
+                thing.primitive_value = x.namespace[
+                    '__bool__'
+                ].call().primitive_value
+        
+        @wrapFuncion
+        def __repr__(thing):
+            if isTrue(thing):
+                return unprimitize('True')
+            return unprimitize('False')
+        
+        @wrapFuncion
+        def __bool__(thing):
+            return thing
     __true__  = instantiate(bool)
-    __true__ ._class = bool
+    __true__ .primitive_value = True
     __false__ = instantiate(bool)
-    __false__._class = bool
-
-    Exception = Thing()
-    Exception._class = Class
-    Exception.namespace['__name__'] = 'Exception'
-    def tempFunc(exception, *args):
-        exception.namespace['args'] = instantiate(
-            builtin.tuple, args, 
-        )
-    Exception.namespace['__init__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    Exception.namespace['__repr__'] = wrapFuncion(
-        lambda self : self.namespace['__name__'] + builtin.repr.call(self.args)
-    )
-
-    StopIteration = Thing()
-    StopIteration._class = Class
-    StopIteration.namespace['__base__'] = Exception
-    StopIteration.namespace['__name__'] = 'StopIteration'
-    NameError = Thing()
-    NameError._class = Class
-    NameError.namespace['__base__'] = Exception
-    NameError.namespace['__name__'] = 'NameError'
-    TypeError = Thing()
-    TypeError._class = Class
-    TypeError.namespace['__base__'] = Exception
-    TypeError.namespace['__name__'] = 'TypeError'
-    IndexError = Thing()
-    IndexError._class = Class
-    IndexError.namespace['__base__'] = Exception
-    IndexError.namespace['__name__'] = 'IndexError'
-    KeyError = Thing()
-    KeyError._class = Class
-    KeyError.namespace['__base__'] = Exception
-    KeyError.namespace['__name__'] = 'KeyError'
-    AttributeError = Thing()
-    AttributeError._class = Class
-    AttributeError.namespace['__base__'] = Exception
-    AttributeError.namespace['__name__'] = 'AttributeError'
-    ImportError = Thing()
-    ImportError._class = Class
-    ImportError.namespace['__base__'] = Exception
-    ImportError.namespace['__name__'] = 'ImportError'
-    KeyboardInterrupt = Thing()
-    KeyboardInterrupt._class = Class
-    KeyboardInterrupt.namespace['__base__'] = Exception
-    KeyboardInterrupt.namespace['__name__'] = 'KeyboardInterrupt'
-
-    NoneType = Thing()
-    NoneType._class = Class
-    NoneType.namespace['__name__'] = 'NoneType'
-    NoneType.namespace['__repr__'] = wrapFuncion(
-        lambda _ : 'None'
-    )
+    
+    @wrapClass()
+    class NoneType: 
+        @wrapFuncion
+        def __init__(thing):
+            thing.primitive_value = None
+        
+        @wrapFuncion
+        def __repr__(thing):
+            return 'None'
     __none__ = instantiate(NoneType)
-    __none__._class = NoneType
-    __none__.primitive_value = None
-
-    int = Thing()
-    int._class = Class
-    int.namespace['__name__'] = 'int'
-    int.namespace['__repr__'] = wrapFuncion(
-        lambda self : repr(self.primitive_value)
-    )
-    def tempFunc(intSelf, x = 0):
-        intSelf.primitive_value = x
-    int.namespace['__init__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        thing = instantiate(a._class)
-        try:
-            thing.primitive_value = a.primitive_value + b.primitive_value
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''"{
-                    builtin.repr.call(a._class)
-                }" cannot add "{builtin.repr.call(b._class)}"'''
-            ))
-    int.namespace['__add__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        thing = instantiate(a._class)
-        try:
-            thing.primitive_value = a.primitive_value % b.primitive_value
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''"{
-                    builtin.repr.call(a._class)
-                }" cannot mod "{builtin.repr.call(b._class)}"'''
-            ))
-    int.namespace['__mod__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        thing = instantiate(a._class)
-        try:
-            thing.primitive_value = a.primitive_value * b.primitive_value
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''"{
-                    builtin.repr.call(a._class)
-                }" cannot multiply "{builtin.repr.call(b._class)}"'''
-            ))
-    int.namespace['__mul__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        thing = instantiate(a._class)
-        try:
-            thing.primitive_value = a.primitive_value / b.primitive_value
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''"{
-                    builtin.repr.call(a._class)
-                }" cannot divide "{builtin.repr.call(b._class)}"'''
-            ))
-    int.namespace['__truediv__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        thing = instantiate(a._class)
-        try:
-            thing.primitive_value = a.primitive_value ** b.primitive_value
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''"{
-                    builtin.repr.call(a._class)
-                }" cannot power "{builtin.repr.call(b._class)}"'''
-            ))
-    int.namespace['__pow__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a):
-        thing = instantiate(a._class)
-        try:
-            thing.primitive_value = - a.primitive_value
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''"{
-                    builtin.repr.call(a._class)
-                }" cannot be negated. '''
-            ))
-    int.namespace['__neg__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        if a.primitive_value == b.primitive_value:
-            return builtin.__true__
-        return builtin.__false__
-    int.namespace['__eq__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        try:
-            if a.primitive_value < b.primitive_value:
-                return builtin.__true__
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''{
-                    builtin.repr.call(a._class)
-                } < {
-                    builtin.repr.call(b._class)
-                } unsupported. '''
-            ))
-        return builtin.__false__
-    int.namespace['__lt__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        try:
-            if a.primitive_value > b.primitive_value:
-                return builtin.__true__
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''{
-                    builtin.repr.call(a._class)
-                } > {
-                    builtin.repr.call(b._class)
-                } unsupported. '''
-            ))
-        return builtin.__false__
-    int.namespace['__gt__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        try:
-            if a.primitive_value <= b.primitive_value:
-                return builtin.__true__
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''{
-                    builtin.repr.call(a._class)
-                } <= {
-                    builtin.repr.call(b._class)
-                } unsupported. '''
-            ))
-        return builtin.__false__
-    int.namespace['__le__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(a, b):
-        try:
-            if a.primitive_value >= b.primitive_value:
-                return builtin.__true__
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''{
-                    builtin.repr.call(a._class)
-                } >= {
-                    builtin.repr.call(b._class)
-                } unsupported. '''
-            ))
-        return builtin.__false__
-    int.namespace['__ge__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    int.namespace['__bool__'] = wrapFuncion(
-        lambda self : builtin.__true__ if self.primitive_value else builtin.__false__
-    )
-
-    float = Thing()
-    float._class = Class
-    float.namespace = int.namespace.copy()
-    float.namespace['__name__'] = 'float'
-    def tempFunc(floatSelf, x = 0.):
-        floatSelf.primitive_value = x
-    float.namespace['__init__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-
-    str = Thing()
-    str._class = Class
-    str.namespace = int.namespace.copy()
-    str.namespace['__name__'] = 'str'
-    def tempFunc(strSelf, x = ''):
-        strSelf.primitive_value = x
-    str.namespace['__init__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-
-    list = Thing()
-    list._class = Class
-    list.namespace = int.namespace.copy()
-    list.namespace['__name__'] = 'list'
-    def tempFunc(listSelf, x = []):
-        listSelf.primitive_value = list(x)
-    list.namespace['__init__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(listSelf, index):
-        try:
-            result = listSelf.primitive_value[
-                index.primitive_value
-            ]
-            if type(result) is Thing:
-                return result
-            return unprimitize(result)
-        except TypeError:
-            raise Helicopter(instantiate(
-                builtin.TypeError, f'''"{
-                    builtin.repr(index._class)
-                }" cannot be index/key.'''
-            ))
-        except IndexError:
-            raise Helicopter(instantiate(
-                builtin.IndexError, f'''Index {
-                    repr(index.primitive_value)
-                } invalid.'''
-            ))
-        except KeyError:
-            raise Helicopter(instantiate(
-                builtin.KeyError, f'''Key {
-                    repr(index.primitive_value)
-                } invalid.'''
-            ))
-    list.namespace['__getitem__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(listSelf, slice_as_tuple):
-        t = []
-        for x in slice_as_tuple.primitive_value:
-            t.append(x.primitive_value)
-        result = listSelf.primitive_value[
-            slice(*t)
-        ]
-        return instantiate(listSelf._class, (
-            x if type(x) is Thing else unprimitize(x)
-            for x in result
-        ))
-    list.namespace['__slice__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(listSelf, key, value):
-        ...
-    list.namespace['__setitem__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-    def tempFunc(listSelf, element):
-        if element in listSelf.primitive_value:
-            return builtin.__true__
-        return builtin.__false__
-    list.namespace['__contains__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-
-    tuple = Thing()
-    tuple._class = Class
-    tuple.namespace = list.namespace.copy()
-    tuple.namespace['__name__'] = 'tuple'
-    def tempFunc(tupleSelf, x = ()):
-        tupleSelf.primitive_value = tuple(x)
-    tuple.namespace['__init__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-
-    dict = Thing()
-    dict._class = Class
-    dict.namespace = list.namespace.copy()
-    dict.namespace['__name__'] = 'dict'
-    def tempFunc(dictSelf, x = {}):
-        dictSelf.primitive_value = x.copy()
-    dict.namespace['__init__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-
-    set = Thing()
-    set._class = Class
-    set.namespace = list.namespace.copy()
-    set.namespace['__name__'] = 'set'
-    def tempFunc(setSelf, x = set()):
-        setSelf.primitive_value = set(x)
-    set.namespace['__init__'] = wrapFuncion(
-        tempFunc
-    )
-    del tempFunc
-
-    @wrapFuncion
-    def type(self, x : Thing):
-        return x._class
     
-    @wrapFuncion
-    def hash(self, x : Thing):
-        return x.namespace['__hash__'].call()
+    @wrapClass()
+    class Exception:
+        @wrapFuncion
+        def __init__(thing, *args):
+            thing.namespace['args'] = instantiate(
+                builtin.tuple, args, 
+            )
+        
+        @wrapFuncion
+        def __repr__(thing):
+            return (
+                thing._class.namespace['__name__'] 
+                + builtin.repr.call(thing.namespace['args'])
+            )
     
-    @wrapFuncion
-    def repr(self, x : Thing):
-        return x._class.namespace['__repr__'].call(x)
+    @wrapClass(base = Exception)
+    class StopIteration: pass
+    @wrapClass(base = Exception)
+    class NameError: pass
+    @wrapClass(base = Exception)
+    class TypeError: pass
+    @wrapClass(base = Exception)
+    class IndexError: pass
+    @wrapClass(base = Exception)
+    class KeyError: pass
+    @wrapClass(base = Exception)
+    class AttributeError: pass
+    @wrapClass(base = Exception)
+    class ImportError: pass
+    @wrapClass(base = Exception)
+    class KeyboardInterrupt: pass
+    @wrapClass(base = Exception)
+    class PythonException: pass
 
-builtin = Builtin()
+    @wrapClass()
+    class int:
+        @wrapFuncion
+        def __init__(thing, x = None):
+            if x is None:
+                thing.primitive_value = 0
+            elif x._class in (builtin.float, builtin.str):
+                try:
+                    thing.primitive_value = int(x.primitive_value)
+                except Exception as e:
+                    promotePythonException(e)
