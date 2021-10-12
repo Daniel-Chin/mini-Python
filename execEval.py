@@ -247,24 +247,26 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
                 assert all([x is Identifier for x in lexem_types])
                 # A non-minipy assertion
                 targets = [x.value for x in lexems]
-        if name not in runTime.modules:
+        try:
+            moduleNamepsace = runTime.getModule(name)
+        except KeyError:
             if runTime.isImportCircular(name):
                 ...
             else:
                 runTime.imPort(name)
+            moduleNamepsace = runTime.getModule(name)
         if cmdTree.type is Import:
             module = instantiate(builtin.Module)
-            module.namespace = runTime.modules[name]
+            module.namespace = moduleNamepsace
             assignTo(module, name, environment)
         elif cmdTree.type is From:
-            namespace = runTime.modules[name]
             if targets == '*':
-                for key, value in namespace.items():
+                for key, value in moduleNamepsace.items():
                     assignTo(value, key, environment)
             else:
                 for target in targets:
                     assignTo(
-                        namespace[target], target, 
+                        moduleNamepsace[target], target, 
                         environment, 
                     )
 
