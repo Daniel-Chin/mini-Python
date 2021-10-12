@@ -56,6 +56,13 @@ def unprimitize(primitive):
     thing.primitive_value = primitive
     return thing
 
+def assertPrimitive(thing):
+    if thing.primitive_value is rt.NULL:
+        raise rt.Helicopter(
+            builtin.TypeError, 
+            'This operation for non-primitives are not implemented.', 
+        )
+
 def isTrue(thing : rt.Thing) -> bool:
     if thing.namespace['__bool__'].call().primitive_value:
         return builtin.__true__
@@ -91,9 +98,20 @@ def wrapClass(base = None):
     return _wrapClass
 
 def promotePythonException(e):
+    minipyException = {
+        StopIteration    : builtin.StopIteration, 
+        NameError        : builtin.NameError, 
+        TypeError        : builtin.TypeError, 
+        IndexError       : builtin.IndexError, 
+        KeyError         : builtin.KeyError, 
+        AttributeError   : builtin.AttributeError, 
+        ImportError      : builtin.ImportError, 
+        KeyboardInterrupt: builtin.KeyboardInterrupt, 
+        ValueError       : builtin.ValueError, 
+    }.get(type(e), builtin.PythonException)
     raise rt.Helicopter(
-        builtin.PythonException, 
-        repr(e), 
+        minipyException, 
+        e.args[0], 
     )
 
 class builtin:
@@ -101,7 +119,9 @@ class builtin:
     Class._class = Class
     Class.namespace['__name__'] = 'Class'
     Class.namespace['__repr__'] = wrapFuncion(
-        lambda self : f'<class "{self.namespace["__name__"]}">'
+        lambda thing : unprimitize(
+            f'<class "{thing.namespace["__name__"]}">'
+        )
     )
     Class.namespace['__str__'] = Class.namespace['__repr__']
     Class.namespace['__dict__'] = wrapFuncion(
@@ -128,6 +148,7 @@ class builtin:
                 thing.primitive_value = x.namespace[
                     '__bool__'
                 ].call().primitive_value
+            return builtin.__none__
         
         @wrapFuncion
         def __repr__(thing):
@@ -147,6 +168,7 @@ class builtin:
         @wrapFuncion
         def __init__(thing):
             thing.primitive_value = None
+            return builtin.__none__
         
         @wrapFuncion
         def __repr__(thing):
@@ -158,6 +180,7 @@ class builtin:
         @wrapFuncion
         def __init__(thing, *args):
             thing.namespace['args'] = unprimitize(args)
+            return builtin.__none__
         
         @wrapFuncion
         def __repr__(thing):
@@ -183,6 +206,8 @@ class builtin:
     @wrapClass(base = Exception)
     class KeyboardInterrupt: pass
     @wrapClass(base = Exception)
+    class ValueError: pass
+    @wrapClass(base = Exception)
     class PythonException: pass
 
     @wrapClass()
@@ -193,6 +218,7 @@ class builtin:
         
         @wrapFuncion
         def __add__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value + b.primitive_value
@@ -203,6 +229,7 @@ class builtin:
         
         @wrapFuncion
         def __mul__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value * b.primitive_value
@@ -213,6 +240,7 @@ class builtin:
         
         @wrapFuncion
         def __mod__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value % b.primitive_value
@@ -223,6 +251,7 @@ class builtin:
         
         @wrapFuncion
         def __truediv__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value / b.primitive_value
@@ -233,6 +262,7 @@ class builtin:
         
         @wrapFuncion
         def __pow__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value ** b.primitive_value
@@ -251,6 +281,7 @@ class builtin:
         
         @wrapFuncion
         def __eq__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value == b.primitive_value
@@ -261,6 +292,7 @@ class builtin:
         
         @wrapFuncion
         def __lt__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value < b.primitive_value
@@ -271,6 +303,7 @@ class builtin:
         
         @wrapFuncion
         def __gt__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value > b.primitive_value
@@ -281,6 +314,7 @@ class builtin:
         
         @wrapFuncion
         def __le__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value <= b.primitive_value
@@ -291,6 +325,7 @@ class builtin:
         
         @wrapFuncion
         def __ge__(a, b):
+            assertPrimitive(b)
             try:
                 primitive_value = (
                     a.primitive_value >= b.primitive_value
@@ -334,6 +369,12 @@ class builtin:
                 ))
             except Exception as e:
                 promotePythonException(e)
+        
+        @wrapFuncion
+        def copy(thing):
+            other = instantiate(thing._class)
+            other.primitive_value = thing.primitive_value
+            return other
     
     @wrapClass(base = GenericPrimitive)
     class int:
@@ -349,6 +390,7 @@ class builtin:
                     ].call().primitive_value
                 except Exception as e:
                     promotePythonException(e)
+            return builtin.__none__
     
     @wrapClass(base = GenericPrimitive)
     class float:
@@ -364,6 +406,7 @@ class builtin:
                     ].call().primitive_value
                 except Exception as e:
                     promotePythonException(e)
+            return builtin.__none__
     
     @wrapClass(base = GenericPrimitive)
     class str:
@@ -379,6 +422,7 @@ class builtin:
                     ].call().primitive_value
                 except Exception as e:
                     promotePythonException(e)
+            return builtin.__none__
     
     @wrapClass(base = GenericPrimitive)
     class slice:
@@ -407,20 +451,35 @@ class builtin:
             thing.namespace['start'] = unprimitize(start)
             thing.namespace['step']  = unprimitize(step )
             thing.namespace['stop']  = unprimitize(stop )
+            return builtin.__none__
     
     @wrapClass(base = GenericPrimitive)
-    class ItemContainers:
+    class ListAndTuple:
         @wrapFuncion
-        def __getitem__(thing, theSlice):
+        def __getitem__(thing, index_or_slice):
+            assertPrimitive(index_or_slice)
             try:
-                primitive_result = thing.primitive_value[
-                    theSlice.primitive_value
+                result = thing.primitive_value[
+                    index_or_slice.primitive_value
                 ]
             except Exception as e:
                 promotePythonException(e)
-            return unprimitize(primitive_result)
-    
-    @wrapClass(base = ItemContainers)
+            if type(index_or_slice.primitive_value) is slice:
+                return unprimitize(result)
+            return result
+        
+        @wrapFuncion
+        def __len__(thing):
+            return unprimitize(len(thing.primitive_value))
+        
+        @wrapFuncion
+        def index(thing, item):
+            try:
+                return thing.primitive_value.index(item)
+            except Exception as e:
+                promotePythonException(e)
+        
+    @wrapClass(base = ListAndTuple)
     class list:
         @wrapFuncion
         def __init__(thing, x = None):
@@ -429,3 +488,104 @@ class builtin:
                 pass
             else:
                 thing.primitive_value = [*rt.ThingIter(x)]
+            return builtin.__none__
+        
+        @wrapFuncion
+        def __setitem__(thing, index_or_slice, value):
+            assertPrimitive(index_or_slice)
+            if type(index_or_slice.primitive_value) is slice:
+                value = value.primitive_value
+            try:
+                thing.primitive_value[
+                    index_or_slice.primitive_value
+                ] = value
+            except Exception as e:
+                promotePythonException(e)
+            return builtin.__none__
+
+        @wrapFuncion
+        def clear(thing):
+            thing.primitive_value.clear()
+            return builtin.__none__
+
+        @wrapFuncion
+        def append(thing, other):
+            thing.primitive_value.append(other)
+            return builtin.__none__
+
+        @wrapFuncion
+        def pop(thing, index):
+            try:
+                return thing.primitive_value.pop(index.primitive_value)
+            except Exception as e:
+                promotePythonException(e)
+        
+        @wrapFuncion
+        def extend(thing, other):
+            assertPrimitive(other)
+            try:
+                thing.primitive_value.extend(
+                    other.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return builtin.__none__
+        
+        @wrapFuncion
+        def remove(thing, item):
+            try:
+                return thing.primitive_value.remove(item)
+            except Exception as e:
+                promotePythonException(e)
+        
+        @wrapFuncion
+        def sort(thing, key = None, reverse = False):
+            if key is not None:
+                raise rt.Helicopter(
+                    builtin.Exception, 
+                    'MiniPy does not support sorting with key.', 
+                )
+            if not all([
+                x._class in (
+                    builtin.int, builtin.float, builtin.str, 
+                ) for x in thing.primitive_value
+            ]):
+                raise rt.Helicopter(
+                    builtin.Exception, 
+                    'MiniPy only supports sorting list of int, float, str.', 
+                )
+            if type(reverse) is rt.Thing:
+                reverse = isTrue(reverse)
+            try:
+                thing.primitive_value.sort(key = lambda x : (
+                    x.primitive_value
+                ), reverse = reverse)
+            except Exception as e:
+                promotePythonException(e)
+            return builtin.__none__
+    
+    @wrapClass(base = ListAndTuple)
+    class tuple:
+        @wrapFuncion
+        def __init__(thing, x = None):
+            thing.primitive_value = ()
+            if x is None:
+                pass
+            else:
+                thing.primitive_value = tuple(
+                    *rt.ThingIter(x), 
+                )
+            return builtin.__none__
+    
+    @wrapClass(base = DictAndSet)
+    class dict:
+        @wrapFuncion
+        def __init__(thing, x = None):
+            thing.primitive_value = []
+            if x is None:
+                pass
+            else:
+                thing.primitive_value = [*rt.ThingIter(x)]
+            return builtin.__none__
+
+    del GenericPrimitive, ListAndTuple, DictAndSet
