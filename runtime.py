@@ -105,6 +105,7 @@ class ReturnAsException(Exception):
         super().__init__()
         self.content : Thing = content
 class BreakAsException(Exception): pass
+class ContinueAsException(Exception): pass
 
 def executeFunction(
     func : Thing, args : List[Thing], 
@@ -173,7 +174,10 @@ def executeSequence(
                             subBlock.condition[0], environment, 
                         )
                         if isTrue(condition):
-                            executeSequence(subBlock.body, environment)
+                            try:
+                                executeSequence(subBlock.body, environment)
+                            except ContinueAsException:
+                                pass
                         else:
                             break
                 except BreakAsException:

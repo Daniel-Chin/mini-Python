@@ -1,12 +1,14 @@
 from runtime import (
-    Environment, Helicopter, Namespace, RunTime, Thing, assignTo, 
-    instantiate, 
-    isTrue, ThingIter, isSame, executeScript, 
+    BreakAsException, Environment, Helicopter, Namespace, 
+    ContinueAsException, ReturnAsException, RunTime, Thing, 
+    assignTo, instantiate, 
+    isTrue, ThingIter, isSame, 
 )
 from lexems import Identifier
 from lexer import *
 from .parser import (
-    CmdTree, Empty, ExpressionTree, FunctionArg, IsNot, NotIn, 
+    AssignCmd, CmdTree, Empty, ExpressionCmd, ExpressionTree, 
+    FunctionArg, IsNot, NotIn, 
     Terminal, Parened, TupleDisplay, FunctionCall, 
     DictDisplay, SetDisplay, ListDisplay, Indexing, Slicing, 
     Binary, Unary, Attributing, ListComp, UnaryNegate, 
@@ -247,7 +249,7 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
                 assert all([x is Identifier for x in lexem_types])
                 # A non-minipy assertion
                 targets = [x.value for x in lexems]
-        importJob : RunTime.ImportJob = runTime.isImportCircular(name):
+        importJob : RunTime.ImportJob = runTime.isImportCircular(name)
         if importJob:
             forbid = environment[-1].forbid
             if cmdTree.type is Import:
@@ -281,6 +283,28 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
                             moduleNamepsace[target], target, 
                             environment, 
                         )
+    elif cmdTree.type is Del:
+        assignTo(Undefined(), cmdTree[0], environment)
+    elif cmdTree.type is Raise:
+        raise Helicopter(evalExpression(
+            cmdTree[0], environment, 
+        ))
+    elif cmdTree.type is Return:
+        raise ReturnAsException(evalExpression(
+            cmdTree[0], environment, 
+        ))
+    elif cmdTree.type is Break:
+        raise BreakAsException
+    elif cmdTree.type is Continue:
+        raise ContinueAsException
+    elif cmdTree.type is Pass:
+        pass
+    elif cmdTree.type is ExpressionCmd:
+        return evalExpression(cmdTree[0], environment)
+        # Returning for REPL
+    elif cmdTree.type is AssignCmd:
+        thing = evalExpression(cmdTree[1], environment)
+        assignTo(thing, cmdTree[0], environment)
 
 def parsePackaging(eTree : ExpressionTree):
     if eTree.type is Attributing:
@@ -292,12 +316,22 @@ def parsePackaging(eTree : ExpressionTree):
             + f'but encountered "{eTree.type.__name__}".', 
         ))
 
+class Undefined:
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        return self
+
 def assignTo(
     thing : Thing, slot, 
     environment : Environment, 
 ):
     if type(slot) is Identifier:
-        environment.assign(slot.value, thing)
+        if type(thing) is Undefined:
+            environment.delete(slot.value)
+        else:
+            environment.assign(slot.value, thing)
     elif type(slot) is ExpressionTree:
         if slot.type in (Parened, Terminal):
             assignTo(thing, slot[0], environment)
