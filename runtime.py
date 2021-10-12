@@ -65,6 +65,10 @@ class Environment(list):
         raise Helicopter(instantiate(
             builtin.NameError, f'name "{name}" is not defined.', 
         ))
+    
+    def delete(self, name : str):
+        # raises KeyError
+        self[-1].pop(name)
 
 class Helicopter(Exception): 
     def __init__(self, content = None):
@@ -327,6 +331,9 @@ class RunTime:
             self.filename : str = filename
             self.namespace = namespace
             self.onDone = []
+        
+        def __bool__(self):
+            return True
 
     def __init__(self, dir_location):
         self.dir_location = dir_location
@@ -357,11 +364,17 @@ class RunTime:
 
     def isImportCircular(self, name):
         filename = self.resolveName(name)
-        return filename in [
-            x.filename for x in self.nowImportJobs
-        ]
+        for job in self.nowImportJobs:
+            if job.filename == filename:
+                return job
+        return False
 
     def imPort(self, name, __Name__):
+        try:
+            return self.getModule(name)
+        except KeyError:
+            pass
+        assert not self.isImportCircular(name)
         filename = self.resolveName(name)
         namespace = {
             **builtin.__dict__.copy(), 
@@ -382,4 +395,7 @@ class RunTime:
                     ...
         finally:
             self.nowImportJobs.remove(job)
-        self.modules[filename] = namespace
+        self._modules[filename] = namespace
+        for func, cmdTree, environment in job.onDone:
+            func(self, cmdTree, environment)
+        return namespace

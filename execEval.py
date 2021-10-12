@@ -247,28 +247,38 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
                 assert all([x is Identifier for x in lexem_types])
                 # A non-minipy assertion
                 targets = [x.value for x in lexems]
-        try:
-            moduleNamepsace = runTime.getModule(name)
-        except KeyError:
-            if runTime.isImportCircular(name):
-                ...
-            else:
-                runTime.imPort(name, name)
-            moduleNamepsace = runTime.getModule(name)
-        if cmdTree.type is Import:
-            module = instantiate(builtin.Module)
-            module.namespace = moduleNamepsace
-            assignTo(module, name, environment)
-        elif cmdTree.type is From:
-            if targets == '*':
-                for key, value in moduleNamepsace.items():
-                    assignTo(value, key, environment)
-            else:
-                for target in targets:
-                    assignTo(
-                        moduleNamepsace[target], target, 
-                        environment, 
-                    )
+        importJob : RunTime.ImportJob = runTime.isImportCircular(name):
+        if importJob:
+            if cmdTree.type is Import:
+                environment.delete(name)
+            elif cmdTree.type is From:
+                if targets == '*':
+                    raise Helicopter(instantiate(
+                        builtin.ImportError, 
+                        'Circular import does not support "*".'
+                    ))
+                else:
+                    for target in targets:
+                        environment.delete(target)
+            importJob.onDone.append((
+                executeCmdTree, cmdTree, environment, 
+            ))
+        else:
+            moduleNamepsace = runTime.imPort(name, name)
+            if cmdTree.type is Import:
+                module = instantiate(builtin.Module)
+                module.namespace = moduleNamepsace
+                assignTo(module, name, environment)
+            elif cmdTree.type is From:
+                if targets == '*':
+                    for key, value in moduleNamepsace.items():
+                        assignTo(value, key, environment)
+                else:
+                    for target in targets:
+                        assignTo(
+                            moduleNamepsace[target], target, 
+                            environment, 
+                        )
 
 def parsePackaging(eTree : ExpressionTree):
     if eTree.type is Attributing:
