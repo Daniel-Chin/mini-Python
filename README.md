@@ -56,6 +56,7 @@ How to error-time output stack? define exception?
 - `except (Exc1, Exc2):` is not allowed. 
 - `help()`
 - `10e-5`
+- Variable names starting with "__" does not rename the variable into private. 
 
 ## what's different
 - A multi-line cmd must have at least one unclosed bracket/parenthesis in every line except its last line.  

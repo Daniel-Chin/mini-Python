@@ -13,7 +13,7 @@ from execEval import evalExpression, executeCmdTree, assignTo
 class Thing:
     def __init__(self) -> None:
         self._class : Thing = None
-        self.namespace = {}
+        self.namespace = Namespace()
 
         # if it is a function
         self.environment = []
@@ -52,6 +52,30 @@ class Thing:
                     f'{builtin.repr.call(self)} is not callable.', 
                 ))
 
+class Namespace(dict):
+    def __init__(self):
+        super().__init__()
+        self.forbidden = set()
+    
+    def forbid(self, name):
+        self.forbidden.add(name)
+    
+    def __getitem__(self, key):
+        if key in self.forbidden:
+            raise Helicopter(instantiate(
+                builtin.ImportError, 
+                f'Accessing evaluation-postponed variable "{key}" during circular import.'
+            ))
+        else:
+            return super().__getitem__(key)
+    
+    def __setitem__(self, key, value) -> None:
+        try:
+            self.forbidden.remove(key)
+        except KeyError:
+            pass
+        return super().__setitem__(key, value)
+
 class Environment(list):
     def assign(self, name : str, value : Thing):
         self[-1][name] = value
@@ -86,7 +110,7 @@ def executeFunction(
     func : Thing, args : List[Thing], 
     keyword_args : Dict[str, Thing], 
 ) -> Thing:
-    argument_namespace = {}
+    argument_namespace = Namespace()
     arg_names = [x.name for x in func.mst._def[1:]]
     for i, thing in enumerate(args):
         try:
@@ -107,12 +131,12 @@ def executeFunction(
         else:
             # unknown argument
             ...
-    argument_namespace = {
+    argument_namespace = Namespace({
         **func.default_args, **argument_namespace, 
-    }
+    })
     return executeSequence(
         func.mst.body, 
-        [*func.environment, argument_namespace], 
+        Environment([*func.environment, argument_namespace]), 
     )
 
 def executeSequence(
@@ -376,10 +400,10 @@ class RunTime:
             pass
         assert not self.isImportCircular(name)
         filename = self.resolveName(name)
-        namespace = {
+        namespace = Namespace({
             **builtin.__dict__.copy(), 
             '__name__': __Name__, 
-        }
+        })
         job = self.ImportJob(filename, namespace)
         self.nowImportJobs.add(job)
         try:

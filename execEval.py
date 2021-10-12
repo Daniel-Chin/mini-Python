@@ -1,5 +1,5 @@
 from runtime import (
-    Environment, Helicopter, RunTime, Thing, assignTo, 
+    Environment, Helicopter, Namespace, RunTime, Thing, assignTo, 
     instantiate, 
     isTrue, ThingIter, isSame, executeScript, 
 )
@@ -216,7 +216,7 @@ def evalExpression(
                 conditionTree = None
             iterThing = ThingIter(evalExpression(iterTree, environment))
             buffer = []
-            tempEnv = environment + [{}]
+            tempEnv = environment + [Namespace()]
             for nextThing in iterThing:
                 assignTo(nextThing, xTree, tempEnv)
                 if isTrue(evalExpression(conditionTree, tempEnv)):
@@ -249,8 +249,9 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
                 targets = [x.value for x in lexems]
         importJob : RunTime.ImportJob = runTime.isImportCircular(name):
         if importJob:
+            forbid = environment[-1].forbid
             if cmdTree.type is Import:
-                environment.delete(name)
+                forbid(name)
             elif cmdTree.type is From:
                 if targets == '*':
                     raise Helicopter(instantiate(
@@ -259,7 +260,7 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
                     ))
                 else:
                     for target in targets:
-                        environment.delete(target)
+                        forbid(target)
             importJob.onDone.append((
                 executeCmdTree, cmdTree, environment, 
             ))
@@ -272,7 +273,8 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
             elif cmdTree.type is From:
                 if targets == '*':
                     for key, value in moduleNamepsace.items():
-                        assignTo(value, key, environment)
+                        if not key.startswith('__'):
+                            assignTo(value, key, environment)
                 else:
                     for target in targets:
                         assignTo(
