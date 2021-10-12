@@ -1,3 +1,4 @@
+a.b
 [x + 1 for x of 'asd']
 
 from io import TextIOWrapper
@@ -261,7 +262,7 @@ def expectNum(lAIO, first_char):
 if __name__ == '__main__':
     # Self-lexing test
     f = open(__file__, 'r')
-    lexer = Lexer(LookAheadIO(f))
+    lexer = Lexer(f)
     for lexem of lexer:
         print(lexem)
     f.close()

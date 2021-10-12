@@ -230,7 +230,53 @@ def evalExpression(
 
 def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environment):
     if cmdTree.type in (From, Import):
-        newNamespace = executeScript
+        if cmdTree.type is Import:
+            name = cmdTree[0].value
+        elif cmdTree.type is From:
+            name = parsePackaging(cmdTree[0])
+            lexems = cmdTree[1:]
+            lexem_types = [type(x) for x in lexems]
+            if Times in lexem_types:
+                if len(lexems) != 1:
+                    raise Helicopter(instantiate(
+                        builtin.ImportError, 
+                        'importing other things with "*"'
+                    ))
+                targets = '*'
+            else:
+                assert all([x is Identifier for x in lexem_types])
+                # A non-minipy assertion
+                targets = [x.value for x in lexems]
+        if name not in runTime.modules:
+            if runTime.isImportCircular(name):
+                ...
+            else:
+                runTime.imPort(name)
+        if cmdTree.type is Import:
+            module = instantiate(builtin.Module)
+            module.namespace = runTime.modules[name]
+            assignTo(module, name, environment)
+        elif cmdTree.type is From:
+            namespace = runTime.modules[name]
+            if targets == '*':
+                for key, value in namespace.items():
+                    assignTo(value, key, environment)
+            else:
+                for target in targets:
+                    assignTo(
+                        namespace[target], target, 
+                        environment, 
+                    )
+
+def parsePackaging(eTree : ExpressionTree):
+    if eTree.type is Attributing:
+        return parsePackaging(eTree[0]) + '.' + eTree[1].value
+    else:
+        raise Helicopter(instantiate(
+            builtin.ImportError, 
+            'Script path must be identifiers seperated by ".", '
+            + f'but encountered "{eTree.type.__name__}".', 
+        ))
 
 def assignTo(
     thing : Thing, slot, 

@@ -4,5 +4,6 @@ todo:
   helicopter stacking
   __iter__
   __next__
+  ideally, `Thing()` should be used only once in the def of `class`. All others should use `instantiate`. 
 
 search todo and ...

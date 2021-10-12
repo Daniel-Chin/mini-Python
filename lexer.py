@@ -98,7 +98,8 @@ class LookAheadIO:
             elif char == '\n':
                 return
 
-def Lexer(lAIO : LookAheadIO):
+def Lexer(f):
+    lAIO = LookAheadIO(f)
     indent_using = []
     indentation = expectIndentation(lAIO, indent_using)
     yield indentation.lineNumber(1)
@@ -257,6 +258,6 @@ def expectNum(lAIO : LookAheadIO, first_char):
 if __name__ == '__main__':
     # Self-lexing test
     with open(__file__, 'r') as f:
-        lexer = Lexer(LookAheadIO(f))
+        lexer = Lexer(f)
         for lexem in lexer:
             print(lexem)

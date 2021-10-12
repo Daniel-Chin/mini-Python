@@ -111,15 +111,6 @@ def executeFunction(
         [*func.environment, argument_namespace], 
     )
 
-def executeScript(runTime : RunTime, f, namespace):
-    lexer = Lexer(LookAheadIO(f))
-    root = Sequence()
-    root.parse(CmdsParser(lexer))
-    returned = executeSequence(runTime, root, [namespace])
-    if returned is not None:
-        # 'return' outside function
-        ...
-
 def executeSequence(
     runTime, sequence : Sequence, environment, 
 ) -> Thing:
@@ -332,8 +323,8 @@ def isSame(a : Thing, b : Thing):
 
 class RunTime:
     class ImportJob:
-        def __init__(self, name, namespace):
-            self.name : str = name
+        def __init__(self, filename, namespace):
+            self.filename : str = filename
             self.namespace = namespace
             self.onDone = []
 
@@ -342,29 +333,50 @@ class RunTime:
         self.minipypaths = [*reversed(os.environ.get(
             'MINIPYPATH', '', 
         ).split(';'))]
-        self.modules : Dict[str, dict] = {}
+        self._modules : Dict[str, dict] = {}
+        # filename -> namespace
         self.nowImportJobs : Set[self.ImportJob] = set()
     
-    def openScript(self, base, name_parts):
-        filename = os.path.join(base, *name_parts) + '.minipy'
-        if filename in os.listdir(os.path.dirname(filename)):
-            # needs to be case-sensitive, so don't `path.isfile`
-            return open(filename, 'r', encoding='utf-8')
-
-    def imPort(self, name):
+    def resolveName(self, name):
         parts = name.split('.')
         for base in [self.dir_location, *self.minipypaths]:
-            f = self.openScript(base, parts)
-            if f is not None:
-                break
+            filename = os.path.join(base, *parts) + '.minipy'
+            if filename in os.listdir(os.path.dirname(filename)):
+                return os.path.normpath(filename)
         else:
             raise Helicopter(instantiate(
-                builtin.ImportError, f'Script "{name}" not found.'
+                builtin.ImportError, 
+                f'Script "{name}" not found. Hint: ' 
+                + 'Name is case-sensitive. ".minipy" ' 
+                + 'extension is also case-sensitive.'
             ))
-        namespace = builtin.__dict__.copy()
-        job = self.ImportJob(name, namespace)
+    
+    def getModule(self, name):
+        filename = self.resolveName(name)
+        return self._modules[filename]
+
+    def isImportCircular(self, name):
+        return name in [x.name for x in self.nowImportJobs]
+
+    def imPort(self, name, __Name__):
+        filename = self.resolveName(name)
+        namespace = {
+            **builtin.__dict__.copy(), 
+            '__name__': __Name__, 
+        }
+        job = self.ImportJob(filename, namespace)
         self.nowImportJobs.add(job)
-        with f as f:
-            executeScript(self, f, namespace)
-        self.nowImportJobs.remove(job)
-        return namespace
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                lexer = Lexer(f)
+                root = Sequence()
+                root.parse(CmdsParser(lexer))
+                returned = executeSequence(
+                    self, root, [namespace], 
+                )
+                if returned is not None:
+                    # 'return' outside function
+                    ...
+        finally:
+            self.nowImportJobs.remove(job)
+        self.modules[filename] = namespace
