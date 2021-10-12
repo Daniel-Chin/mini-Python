@@ -253,7 +253,7 @@ def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environme
             if runTime.isImportCircular(name):
                 ...
             else:
-                runTime.imPort(name)
+                runTime.imPort(name, name)
             moduleNamepsace = runTime.getModule(name)
         if cmdTree.type is Import:
             module = instantiate(builtin.Module)
