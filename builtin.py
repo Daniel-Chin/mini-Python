@@ -31,18 +31,30 @@ def instantiate(theClass : rt.Thing, *args, **keyword_args):
     return thing
 
 def unprimitize(primitive):
-    if type(primitive) is int:
-        return instantiate(builtin.int, primitive)
-    elif type(primitive) is float:
-        return instantiate(builtin.float, primitive)
-    elif type(primitive) is str:
-        return instantiate(builtin.str, primitive)
-    elif type(primitive) is bool:
+    if type(primitive) is bool:
         if primitive:
             return builtin.__true__
         return builtin.__false__
-    elif type(primitive) is type(None):
-        return builtin.__none__
+    elif type(primitive) is dict:
+        thing = instantiate(builtin.dict)
+        for key, value in primitive.items():
+            thing.namespace('__setitem__').call(key, value)
+        return thing
+    elif type(primitive) is set:
+        thing = instantiate(builtin.set)
+        for key in primitive:
+            thing.namespace('add').call(key)
+        return thing
+    _class = {
+        int  : builtin.int  , 
+        float: builtin.float, 
+        str  : builtin.str  , 
+        list : builtin.list , 
+        tuple: builtin.tuple, 
+    }[type(primitive)]
+    thing = instantiate(_class)
+    thing.primitive_value = primitive
+    return thing
 
 def isTrue(thing : rt.Thing) -> bool:
     if thing.namespace['__bool__'].call().primitive_value:
