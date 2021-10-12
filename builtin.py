@@ -114,6 +114,18 @@ def promotePythonException(e):
         e.args[0], 
     )
 
+class KeyEncoding: 
+    def __hash__(self):
+        raise NotImplemented
+def encodeKey(thing : rt.Thing):
+    if thing.primitive_value is rt.NULL:
+        return thing
+    return thing.primitive_value
+def decodeKey(key):
+    if type(key) is rt.Thing:
+        return key
+    return unprimitize(key)
+
 class builtin:
     Class = rt.Thing()
     Class._class = Class
@@ -577,15 +589,98 @@ class builtin:
                 )
             return builtin.__none__
     
-    @wrapClass(base = DictAndSet)
+    @wrapClass(base = GenericPrimitive)
     class dict:
         @wrapFuncion
         def __init__(thing, x = None):
-            thing.primitive_value = []
+            thing.primitive_value = {}
             if x is None:
-                pass
-            else:
-                thing.primitive_value = [*rt.ThingIter(x)]
-            return builtin.__none__
+                return builtin.__none__
+            if x._class is builtin.dict:
+                thing.primitive_value = x.primitive_value
+                return builtin.__none__
+            raise rt.Helicopter(
+                builtin.Exception, 
+                'MiniPy does not support casting into dict.', 
+            )
+            # return builtin.__none__
 
-    del GenericPrimitive, ListAndTuple, DictAndSet
+        @wrapFuncion
+        def __getitem__(thing, keyThing):
+            encoding = encodeKey(keyThing)
+            try:
+                return thing.primitive_value[
+                    encoding
+                ]
+            except KeyError:
+                raise rt.Helicopter(
+                    builtin.KeyError, 
+                    'No key ' + builtin.repr.call(keyThing).primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+        
+        @wrapFuncion
+        def __setitem__(thing, keyThing, value):
+            encoding = encodeKey(keyThing)
+            try:
+                thing.primitive_value[
+                    encoding
+                ] = value
+            except Exception as e:
+                promotePythonException(e)
+            return builtin.__none__
+        
+        @wrapFuncion
+        def __iter__(thing):
+            l = unprimitize([
+                decodeKey(x) 
+                for x in thing.primitive_value.keys()
+            ])
+            return builtin.iter.call(l)
+        
+        @wrapFuncion
+        def clear(thing):
+            thing.primitive_value.clear()
+            return builtin.__none__
+        
+        get = __getitem__
+        
+        @wrapFuncion
+        def items(thing):
+            l = instantiate(builtin.list)
+            for key, value in thing.primitive_value.items():
+                l.namespace['append'].call(unprimitize(
+                    (decodeKey(key), value), 
+                ))
+            return builtin.iter.call(l)
+
+        @wrapFuncion
+        def pop(thing, keyThing):
+            encoding = encodeKey(keyThing)
+            try:
+                return thing.primitive_value.pop(encoding)
+            except Exception as e:
+                promotePythonException(e)
+
+        @wrapFuncion
+        def update(thing, other):
+            if type(other.primitive_value) is not dict:
+                raise rt.Helicopter(
+                    builtin.TypeError, 
+                    'Updating a dict expects another dict.', 
+                )
+            thing.primitive_value.update(other.primitive_value)
+            return builtin.__none__
+    
+    @wrapFuncion
+    def repr(x : rt.Thing):
+        result = x._class.namespace['__repr__'].call(x)
+        if result._class is builtin.str:
+            return result
+        raise rt.Helicopter(
+            builtin.TypeError, 
+            '__repr__ did not return a str.', 
+        )
+
+    del GenericPrimitive, ListAndTuple

@@ -13,7 +13,7 @@ from parSer import (
     DictDisplay, SetDisplay, ListDisplay, Indexing, Slicing, 
     Binary, Unary, Attributing, ListComp, UnaryNegate, 
 )
-from builtin import builtin, instantiate, isTrue, unprimitize
+from builtin import assertPrimitive, builtin, instantiate, isTrue, unprimitize
 
 class NULL: pass
 
@@ -58,6 +58,13 @@ class Thing:
                     builtin.TypeError, 
                     f'{builtin.repr.call(self)} is not callable.', 
                 )
+    
+    def __hash__(self):
+        if self.primitive_value is not NULL:
+            return hash(self.primitive_value)
+        result = self.namespace['__hash__'].call()
+        assertPrimitive(result)
+        return result.primitive_value
 
 class Namespace(dict):
     def __init__(self):
