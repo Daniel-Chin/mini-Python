@@ -1,5 +1,4 @@
 from typing import List, Dict
-from lexems import Identifier
 from lexer import Lexer, LookAheadIO
 from .parser import (
     CmdTree, ExpressionTree, FunctionArg, Sequence, CmdsParser, 
@@ -7,7 +6,7 @@ from .parser import (
     FunctionDefinition, ClassDefinition, 
 )
 from builtin import builtin
-from execEval import evalExpression, executeCmdTree
+from execEval import evalExpression, executeCmdTree, assignTo
 
 class Thing:
     def __init__(self) -> None:
@@ -266,19 +265,6 @@ def isTrue(thing : Thing) -> bool:
         ...
         # not found
     return __bool__.call() is builtin.__true__
-
-def assignTo(
-    thing : Thing, slot, 
-    environment : Environment, 
-):
-    if type(slot) is Identifier:
-        ...
-    elif type(slot) is ExpressionTree:
-        ...
-    else:
-        raise TypeError(
-            'Cannot assign to non-Identifier non-ExpressionTree. '
-        )   # this is a non-miniPy error
 
 def isSubclassOf(potentialSubclass : Thing, potentialBaseclass : Thing):
     cursor = potentialSubclass

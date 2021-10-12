@@ -1,4 +1,5 @@
 from runtime import Environment, Helicopter, Thing, assignTo, instantiate, isTrue
+from lexems import Identifier
 from lexer import *
 from .parser import (
     CmdTree, Empty, ExpressionTree, FunctionArg, IsNot, NotIn, 
@@ -230,11 +231,29 @@ def evalExpression(
             f'"{e.args[0]}" not supported.'
         )))
 
-def executeCmdTree(cmdTree : CmdTree, environment : Environment):
-    pass
-
 def isSame(a : Thing, b : Thing):
     if a is b:
         return True
     if a.primitive_value is not None and b.primitive_value is not None:
         return a.primitive_value is b.primitive_value
+
+def executeCmdTree(cmdTree : CmdTree, environment : Environment):
+    pass
+
+def assignTo(
+    thing : Thing, slot, 
+    environment : Environment, 
+):
+    if type(slot) is Identifier:
+        environment.assign(slot.value, thing)
+    elif type(slot) is ExpressionTree:
+        if slot.type is Parened:
+            
+        # (slot)
+        # (slot,slot)
+        # slot.identifier
+        # slot[slice]
+    else:
+        raise TypeError(
+            'Cannot assign to non-Identifier non-ExpressionTree. '
+        )   # this is a non-miniPy error

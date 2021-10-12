@@ -350,6 +350,12 @@ class Builtin:
         tempFunc
     )
     del tempFunc
+    def tempFunc(listSelf, key, value):
+        ...
+    list.namespace['__setitem__'] = wrapFuncion(
+        tempFunc
+    )
+    del tempFunc
     def tempFunc(listSelf, element):
         if element in listSelf.primitive_value:
             return builtin.__true__

@@ -110,5 +110,17 @@ returns `<__main__.c object at ...>`
 
 This means, not all callables are binded --- only "functions" are. 
 
+### Ten primitive types
+- int, float
+- str
+- bool, NoneType
+- list
+- tuple
+- dict
+- set
+- slice
+
+Who would have thought that slice needs to be a primitive type? 
+
 ## todo
 - minipy interactive shell
