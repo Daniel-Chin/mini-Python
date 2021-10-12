@@ -161,18 +161,12 @@ def executeSequence(sequence : Sequence, environment) -> Thing:
             elif type(subBlock) is ForLoop:
                 subBlock : ForLoop
                 loopVar : ExpressionTree = subBlock.condition[0]
-                theIter : Thing = evalExpression(
+                iterThing = ThingIter(evalExpression(
                     subBlock.condition[1], environment, 
-                ).namespace['__iter__'].call()
+                ))
                 broken = False
                 try:
-                    while True:
-                        try:
-                            nextThing = theIter.namespace['__next__'].call()
-                        except Helicopter as h:
-                            if h.content._class is builtin.StopIteration:
-                                break
-                            raise h
+                    for nextThing in iterThing:
                         assignTo(nextThing, loopVar, environment)
                         executeSequence(subBlock.body, environment)
                 except BreakAsException:
@@ -314,3 +308,21 @@ def unprimitize(primitive):
         return builtin.__false__
     elif type(primitive) is type(None):
         return builtin.__none__
+
+def ThingIter(thing : Thing):
+    theIter : Thing = thing.namespace['__iter__'].call()
+    while True:
+        try:
+            nextThing = theIter.namespace['__next__'].call()
+        except Helicopter as h:
+            if h.content._class is builtin.StopIteration:
+                return
+            raise h
+        else:
+            yield nextThing
+
+def isSame(a : Thing, b : Thing):
+    if a is b:
+        return True
+    if a.primitive_value is not None and b.primitive_value is not None:
+        return a.primitive_value is b.primitive_value

@@ -1,4 +1,7 @@
-from runtime import Environment, Helicopter, Thing, assignTo, instantiate, isTrue
+from runtime import (
+    Environment, Helicopter, Thing, assignTo, instantiate, 
+    isTrue, ThingIter, isSame, 
+)
 from lexems import Identifier
 from lexer import *
 from .parser import (
@@ -210,17 +213,10 @@ def evalExpression(
                 conditionTree = eTree[3]
             except IndexError:
                 conditionTree = None
-            iterThing = evalExpression(iterTree, environment)
-            theIter : Thing = iterThing.namespace['__iter__'].call()
+            iterThing = ThingIter(evalExpression(iterTree, environment))
             buffer = []
             tempEnv = environment + [{}]
-            while True:
-                try:
-                    nextThing = theIter.namespace['__next__'].call()
-                except Helicopter as h:
-                    if h.content._class is builtin.StopIteration:
-                        break
-                    raise h
+            for nextThing in iterThing:
                 assignTo(nextThing, xTree, tempEnv)
                 if isTrue(evalExpression(conditionTree, tempEnv)):
                     buffer.append(evalExpression(yTree, tempEnv))
@@ -230,12 +226,6 @@ def evalExpression(
         raise Helicopter(instantiate(builtin.TypeError(
             f'"{e.args[0]}" not supported.'
         )))
-
-def isSame(a : Thing, b : Thing):
-    if a is b:
-        return True
-    if a.primitive_value is not None and b.primitive_value is not None:
-        return a.primitive_value is b.primitive_value
 
 def executeCmdTree(cmdTree : CmdTree, environment : Environment):
     pass
@@ -247,12 +237,20 @@ def assignTo(
     if type(slot) is Identifier:
         environment.assign(slot.value, thing)
     elif type(slot) is ExpressionTree:
-        if slot.type is Parened:
-            
-        # (slot)
-        # (slot,slot)
-        # slot.identifier
-        # slot[slice]
+        if slot.type in (Parened, Terminal):
+            assignTo(thing, slot[0], environment)
+        if slot.type in (ListDisplay, TupleDisplay):
+            buffer = [*ThingIter(thing)]
+            if len(buffer) != len(slot):
+                ...
+                # unpacking: dimension mismatch, x != y
+            for subSlot, subThing in zip(slot, buffer):
+                assignTo(subThing, subSlot, environment)
+        if slot.type is Attributing:
+            parent = evalExpression(slot[0], environment)
+            assignTo(thing, slot[1], [parent.namespace])
+        if slot.type in (Indexing, Slicing):
+            ...
     else:
         raise TypeError(
             'Cannot assign to non-Identifier non-ExpressionTree. '
