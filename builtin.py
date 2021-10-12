@@ -51,7 +51,18 @@ def isTrue(thing : rt.Thing) -> bool:
 
 def wrapFuncion(func):
     thing = instantiate(builtin.Function)
-    thing.call = func
+    def wrapped(*args, **kw):
+        try:
+            return func(*args, **kw)
+        except TypeError as e:
+            if 'argument' in e.args[0].lower():
+                raise rt.Helicopter(instantiate(
+                    builtin.TypeError, 
+                    'Builtin function ' + str(e)
+                ))
+            else:
+                raise e
+    thing.call = wrapped
     thing.namespace['__name__'] = '(builtin) ' + func.__name__
     return thing
 
@@ -80,6 +91,7 @@ class builtin:
     Class.namespace['__repr__'] = wrapFuncion(
         lambda self : f'<class "{self.namespace["__name__"]}">'
     )
+    Class.namespace['__str__'] = Class.namespace['__repr__']
     Class.namespace['__dict__'] = wrapFuncion(
         lambda self : instantiate(builtin.dict, self.namespace)
     )
@@ -164,13 +176,234 @@ class builtin:
     class PythonException: pass
 
     @wrapClass()
+    class GenericPrimitive:        
+        @wrapFuncion
+        def __repr__(thing):
+            return unprimitize(repr(thing.primitive_value))
+        
+        @wrapFuncion
+        def __add__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value + b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __mul__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value * b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __mod__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value % b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __truediv__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value / b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __pow__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value ** b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __neg__(thing):
+            try:
+                primitive_value = - thing.primitive_value
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __eq__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value == b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __lt__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value < b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __gt__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value > b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __le__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value <= b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __ge__(a, b):
+            try:
+                primitive_value = (
+                    a.primitive_value >= b.primitive_value
+                )
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(primitive_value)
+        
+        @wrapFuncion
+        def __bool__(thing):
+            try:
+                if thing.primitive_value:
+                    return builtin.__true__
+                return builtin.__false__
+            except Exception as e:
+                promotePythonException(e)
+        
+        @wrapFuncion
+        def __int__(thing):
+            try:
+                return unprimitize(int(
+                    thing.primitive_value
+                ))
+            except Exception as e:
+                promotePythonException(e)
+        
+        @wrapFuncion
+        def __float__(thing):
+            try:
+                return unprimitize(float(
+                    thing.primitive_value
+                ))
+            except Exception as e:
+                promotePythonException(e)
+        
+        @wrapFuncion
+        def __str__(thing):
+            try:
+                return unprimitize(str(
+                    thing.primitive_value
+                ))
+            except Exception as e:
+                promotePythonException(e)
+    
+    @wrapClass(base = GenericPrimitive)
     class int:
         @wrapFuncion
         def __init__(thing, x = None):
+            thing.primitive_value = 0
             if x is None:
-                thing.primitive_value = 0
-            elif x._class in (builtin.float, builtin.str):
+                pass
+            else:
                 try:
-                    thing.primitive_value = int(x.primitive_value)
+                    thing.primitive_value = x.namespace[
+                        '__int__'
+                    ].call().primitive_value
                 except Exception as e:
                     promotePythonException(e)
+    
+    @wrapClass(base = GenericPrimitive)
+    class float:
+        @wrapFuncion
+        def __init__(thing, x = None):
+            thing.primitive_value = 0.0
+            if x is None:
+                pass
+            else:
+                try:
+                    thing.primitive_value = x.namespace[
+                        '__float__'
+                    ].call().primitive_value
+                except Exception as e:
+                    promotePythonException(e)
+    
+    @wrapClass(base = GenericPrimitive)
+    class str:
+        @wrapFuncion
+        def __init__(thing, x = None):
+            thing.primitive_value = ''
+            if x is None:
+                pass
+            else:
+                try:
+                    thing.primitive_value = x.namespace[
+                        '__str__'
+                    ].call().primitive_value
+                except Exception as e:
+                    promotePythonException(e)
+    
+    @wrapClass(base = GenericPrimitive)
+    class slice:
+        @wrapFuncion
+        def __init__(thing, *args):
+            safeArgs = []
+            for arg in args:
+                if type(arg.primitive_value) is not int:
+                    raise TypeError(
+                        '`slice` arguments must be `int`.'
+                    )
+                safeArgs.append(arg.primitive_value)
+            start = 0
+            step = 1
+            if len(safeArgs) < 1:
+                raise TypeError('`slice` expects at least one argument.')
+            elif len(safeArgs) == 1:
+                stop, = safeArgs
+            elif len(safeArgs) == 2:
+                start, stop = safeArgs
+            elif len(safeArgs) == 3:
+                start, stop, step = safeArgs
+            else:
+                raise TypeError('`slice` expects at most four arguments.')
+            thing.primitive_value = slice(start, stop, step)
+            thing.namespace['start'] = unprimitize(start)
+            thing.namespace['step']  = unprimitize(step )
+            thing.namespace['stop']  = unprimitize(stop )
+    
+    @wrapClass(base = GenericPrimitive)
+    class list:
+        @wrapFuncion
+        def __init__(thing, x = None):
+            thing.primitive_value = []
+            if x is None:
+                pass
+            else:
+                thing.primitive_value = [*rt.ThingIter(x)]
