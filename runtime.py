@@ -1,4 +1,6 @@
-from typing import List, Dict
+from __future__ import annotations
+import os
+from typing import List, Dict, Set
 from lexer import Lexer, LookAheadIO
 from .parser import (
     CmdTree, ExpressionTree, FunctionArg, Sequence, CmdsParser, 
@@ -109,22 +111,22 @@ def executeFunction(
         [*func.environment, argument_namespace], 
     )
 
-def executeScript(f) -> dict:
+def executeScript(runTime : RunTime, f, namespace):
     lexer = Lexer(LookAheadIO(f))
     root = Sequence()
     root.parse(CmdsParser(lexer))
-    namespace = builtin.__dict__.copy()
-    returned = executeSequence(root, [namespace])
+    returned = executeSequence(runTime, root, [namespace])
     if returned is not None:
         # 'return' outside function
         ...
-    return namespace
 
-def executeSequence(sequence : Sequence, environment) -> Thing:
+def executeSequence(
+    runTime, sequence : Sequence, environment, 
+) -> Thing:
     for subBlock in sequence:
         try:
             if type(subBlock) is CmdTree:
-                executeCmdTree(subBlock, environment)
+                executeCmdTree(runTime, subBlock, environment)
             elif type(subBlock) is Conditional:
                 subBlock : Conditional
                 condition = evalExpression(
@@ -327,3 +329,42 @@ def isSame(a : Thing, b : Thing):
         return True
     if a.primitive_value is not None and b.primitive_value is not None:
         return a.primitive_value is b.primitive_value
+
+class RunTime:
+    class ImportJob:
+        def __init__(self, name, namespace):
+            self.name : str = name
+            self.namespace = namespace
+            self.onDone = []
+
+    def __init__(self, entry_filename):
+        self.dir_location = os.path.dirname(entry_filename)
+        self.minipypaths = [*reversed(os.environ.get(
+            'MINIPYPATH', '', 
+        ).split(';'))]
+        self.modules : Dict[str, dict] = {}
+        self.nowImportJobs : Set[self.ImportJob] = set()
+    
+    def openScript(self, base, name_parts):
+        filename = os.path.join(base, *name_parts) + '.minipy'
+        if filename in os.listdir(os.path.dirname(filename)):
+            # needs to be case-sensitive, so don't `path.isfile`
+            return open(filename, 'r', encoding='utf-8')
+
+    def imPort(self, name):
+        parts = name.split('.')
+        for base in [self.dir_location, *self.minipypaths]:
+            f = self.openScript(base, parts)
+            if f is not None:
+                break
+        else:
+            raise Helicopter(instantiate(
+                builtin.ImportError, f'Script "{name}" not found.'
+            ))
+        namespace = builtin.__dict__.copy()
+        job = self.ImportJob(name, namespace)
+        self.nowImportJobs.add(job)
+        with f as f:
+            executeScript(self, f, namespace)
+        self.nowImportJobs.remove(job)
+        return namespace

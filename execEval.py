@@ -1,5 +1,6 @@
 from runtime import (
-    Environment, Helicopter, Thing, assignTo, instantiate, 
+    Environment, Helicopter, RunTime, Thing, assignTo, 
+    instantiate, 
     isTrue, ThingIter, isSame, executeScript, 
 )
 from lexems import Identifier
@@ -227,7 +228,7 @@ def evalExpression(
             f'"{e.args[0]}" not supported.'
         )))
 
-def executeCmdTree(cmdTree : CmdTree, environment : Environment):
+def executeCmdTree(runTime : RunTime, cmdTree : CmdTree, environment : Environment):
     if cmdTree.type in (From, Import):
         newNamespace = executeScript
 

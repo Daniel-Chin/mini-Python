@@ -86,6 +86,10 @@ class Builtin:
     AttributeError._class = Class
     AttributeError.namespace['__base__'] = Exception
     AttributeError.namespace['__name__'] = 'AttributeError'
+    ImportError = Thing()
+    ImportError._class = Class
+    ImportError.namespace['__base__'] = Exception
+    ImportError.namespace['__name__'] = 'ImportError'
 
     NoneType = Thing()
     NoneType._class = Class

@@ -36,7 +36,7 @@ How to error-time output stack? define exception?
 - with ... as ...
 - `f'{1}'`
 - `'%d kg' % 3`
-- many built-ins
+- many built-ins (file system...)
 - package import
 - multi inheritance
 - lambda function
@@ -121,6 +121,11 @@ This means, not all callables are binded --- only "functions" are.
 - slice
 
 Who would have thought that slice needs to be a primitive type? 
+
+## Security
+- a minipy script can read .minipy files
+  - under the same dir as the entry script
+  - under %MINIPYPATH%
 
 ## todo
 - minipy interactive shell
