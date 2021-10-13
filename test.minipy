@@ -1,10 +1,21 @@
+print('>>>> print(3)')
 print(3)
-print(type)
+print('>>>> print(print)')
 print(print)
+print('>>>> print(type)')
+print(type)
+print('>>>> print(type(print))')
 print(type(print))
+print('>>>> print(Class)')
 print(Class)
+print('>>>> print(type(Class))')
 print(type(Class))
-print(Class())
+print('>>>> print(type(type(Class)))')
+print(type(type(Class)))
+
+print(1/0)
+print(1/0)
+print(1/0)
 a.b
 [x + 1 for x of 'asd']
 
