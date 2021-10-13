@@ -2,7 +2,9 @@ print(3)
 print(type)
 print(print)
 print(type(print))
-print(type(type))
+print(Class)
+print(type(Class))
+print(Class())
 a.b
 [x + 1 for x of 'asd']
 

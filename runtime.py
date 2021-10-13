@@ -987,11 +987,11 @@ class Builtin:
 builtin = Builtin()
 
 builtin.Class = Thing()
-builtin.Class._class = Class
+builtin.Class._class = builtin.Class
 
 def buildFunc():
     Function = Thing()
-    Function._class = Class
+    Function._class = builtin.Class
     def __func_repr__(thing):
         if '__name__' in thing.namespace:
             name = thing.namespace['__name__'].primitive_value
@@ -1010,6 +1010,12 @@ def rebuildClassFunc():
             f'<class "{thing.namespace["__name__"].primitive_value}">'
         )
     )
+    setNameJobs.append((
+        builtin.Class.namespace['__repr__'], '__repr__', 
+    ))
+    setNameJobs.append((
+        builtin.Class, 'Class', 
+    ))
     
     setNameJobs.append((
         builtin.Function.namespace['__repr__'], '__repr__', 
@@ -1850,8 +1856,6 @@ class DummyBuiltin:
             flush = flush.primitive_value
             if type(flush) is not bool:
                 raise TypeError('`print` argument `flush` must be bool.')
-        # from console import console
-        # console({**globals(), **locals()})
         instantiate(builtin.str, (args[0], ))
         parts = [
             instantiate(builtin.str, (x, )).primitive_value 
