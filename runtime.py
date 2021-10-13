@@ -292,8 +292,7 @@ def executeSequence(
                 if base._class is not builtin.Class:
                     ...
                     # cannot inherit from a non-class
-                thisClass = Thing()
-                thisClass._class = builtin.Class
+                thisClass = instantiate(builtin.Class)
                 thisClass.namespace['__base__'] = base
                 thisClass.namespace['__name__'] = unprimitize(identifier.value)
                 executeSequence(

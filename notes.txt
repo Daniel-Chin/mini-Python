@@ -1,9 +1,8 @@
 to fix:
 
 todo:
-  helicopter stacking
-  ideally, `Thing()` should be used only once in the def of `class`. All others should use `instantiate`. 
-  super()
   check usage of __xx__. most of them should be builtin.xx.call
+  helicopter stacking
+  super()
 
 search todo and ...
