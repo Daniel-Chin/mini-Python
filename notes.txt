@@ -1,7 +1,6 @@
 to fix:
 
 todo:
-  NameSpaceKeyError
   helicopter stacking
   super()
 
