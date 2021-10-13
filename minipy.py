@@ -1,4 +1,5 @@
 import os
+from builtin import reprString
 from runtime import RunTime, Helicopter
 
 def runScript(entry_filename):
@@ -26,6 +27,7 @@ def printStackTrace(helicopter : Helicopter):
                 sep='', 
             )
             print(' ' * 4, line, sep='')
+        print(reprString(helicopter.content))
         helicopter = helicopter.below
         if helicopter is None:
             break
