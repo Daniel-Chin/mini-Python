@@ -1,8 +1,11 @@
 to fix:
 
 todo:
-  dir()
-  locals, globals()
+  environment()
+  namespace()
   print
 
 search todo and ...
+
+to test:
+  namespace().namespace()

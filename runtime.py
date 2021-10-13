@@ -13,7 +13,7 @@ from parSer import (
     DictDisplay, SetDisplay, ListDisplay, Indexing, Slicing, 
     Binary, Unary, Attributing, ListComp, UnaryNegate, 
 )
-from builtin import assertPrimitive, builtin, instantiate, isTrue, reprString, unprimitize
+from builtin import assertPrimitive, builtin, instantiate, isTrue, reprString, unprimitize, wrapFuncion
 
 class NULL: pass
 
@@ -72,10 +72,15 @@ class Namespace(dict):
     def __init__(self):
         super().__init__()
         self.forbidden = set()
+        self['__dict__'] = self.wrapSelf
     
     def forbid(self, name):
         self.forbidden.add(name)
     
+    @wrapFuncion
+    def wrapSelf(self):
+        return unprimitize(self)
+
     def __getitem__(self, key):
         if key in self.forbidden:
             raise Helicopter(
@@ -99,6 +104,12 @@ class Namespace(dict):
         return super().__setitem__(key, value)
 
 class Environment(list):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.insert(0, Namespace({
+            'environment': self.wrapSelf, 
+        }))
+
     def assign(self, name : str, value : Thing):
         self[-1][name] = value
     
@@ -113,6 +124,10 @@ class Environment(list):
     def delete(self, name : str):
         # raises KeyError
         self[-1].pop(name)
+    
+    @wrapFuncion
+    def wrapSelf(self):
+        return unprimitize([unprimitize(x) for x in self])
 
 class Helicopter(Exception): 
     def __init__(self, minipyException, remark = ''):

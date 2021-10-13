@@ -67,10 +67,12 @@ How to error-time output stack? define exception?
 - There's no `BaseException`. just use `Exception`. 
 - `object` class is not exposed. 
 - Exception raised in "finally" section does not display "During handling of the above exception". 
+- Instead of `dir()`, `locals()`, `globals()`, you use `environment()` and `__dict__()`, which are clearly more powerful. 
 
 ## Remarks
-- Memory allocation and garbage collection are inherited from Python. 
-- Is minipy a secure sandbox? 
+- Memory allocation and garbage collection are a wrapper of Python's. 
+- Primitive types (int, list, slice...) methods are a wrapper of Python's. 
+- Is miniPy a secure sandbox? 
 
 ### class thing
 ```python
