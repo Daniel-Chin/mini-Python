@@ -58,6 +58,7 @@ How to error-time output stack? define exception?
 - `10e-5`
 - Variable names starting with "__" does not rename the variable into private. 
 - Instead of `super().__init__()`, you do `self.__base__.__init__(self)`
+- no `__str__`, only `__repr__`. 
 
 ## what's different
 - A multi-line cmd must have at least one unclosed bracket/parenthesis in every line except its last line.  

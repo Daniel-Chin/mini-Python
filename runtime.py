@@ -622,12 +622,7 @@ def evalExpression(
 ) -> Thing:
     if eTree.type is Terminal:
         lexem = eTree[0]
-        if type(lexem) is Num:
-            if '.' in lexem.value:
-                thing = unprimitize(float(lexem.value))
-            else:
-                thing = unprimitize(int(lexem.value))
-        elif type(lexem) is String:
+        if type(lexem) in (Num, String):
             thing = unprimitize(lexem.value)
         elif type(lexem) is Boolean:
             if lexem.value:
@@ -949,6 +944,8 @@ def recordStackTrace(helicopter, label, cmdTree):
     raise helicopter
 
 def promotePythonException(e):
+    if type(e) is Helicopter:
+        raise e
     minipyException = {
         StopIteration    : builtin.StopIteration, 
         NameError        : builtin.NameError, 
@@ -962,7 +959,7 @@ def promotePythonException(e):
     }.get(type(e), builtin.PythonException)
     raise Helicopter(
         minipyException, 
-        e.args[0], 
+        e.args[0] if e.args else '', 
     )
 
 class KeyEncoding: 
@@ -1013,7 +1010,6 @@ def rebuildClassFunc():
             f'<class "{thing.namespace["__name__"].primitive_value}">'
         )
     )
-    builtin.Class.namespace['__str__'] = builtin.Class.namespace['__repr__']
     
     setNameJobs.append((
         builtin.Function.namespace['__repr__'], '__repr__', 
@@ -1231,30 +1227,23 @@ class DummyBuiltin:
         @wrapFuncion
         def __int__(thing):
             try:
-                return unprimitize(int(
+                result = int(
                     thing.primitive_value
-                ))
+                )
             except Exception as e:
                 promotePythonException(e)
+            return unprimitize(result)
         
         @wrapFuncion
         def __float__(thing):
             try:
-                return unprimitize(float(
+                result = float(
                     thing.primitive_value
-                ))
+                )
             except Exception as e:
                 promotePythonException(e)
-        
-        @wrapFuncion
-        def __str__(thing):
-            try:
-                return unprimitize(str(
-                    thing.primitive_value
-                ))
-            except Exception as e:
-                promotePythonException(e)
-        
+            return unprimitize(result)
+                
         @wrapFuncion
         def copy(thing):
             other = instantiate(thing._class)
@@ -1269,12 +1258,9 @@ class DummyBuiltin:
             if x is None:
                 pass
             else:
-                try:
-                    thing.primitive_value = x.namespace[
-                        '__int__'
-                    ].call().primitive_value
-                except Exception as e:
-                    promotePythonException(e)
+                thing.primitive_value = x.namespace[
+                    '__int__'
+                ].call().primitive_value
             return builtin.__none__
     
     @wrapClass(base = GenericPrimitive)
@@ -1285,12 +1271,9 @@ class DummyBuiltin:
             if x is None:
                 pass
             else:
-                try:
-                    thing.primitive_value = x.namespace[
-                        '__float__'
-                    ].call().primitive_value
-                except Exception as e:
-                    promotePythonException(e)
+                thing.primitive_value = x.namespace[
+                    '__float__'
+                ].call().primitive_value
             return builtin.__none__
     
     @wrapClass(base = GenericPrimitive)
@@ -1301,12 +1284,7 @@ class DummyBuiltin:
             if x is None:
                 pass
             else:
-                try:
-                    thing.primitive_value = x.namespace[
-                        '__str__'
-                    ].call().primitive_value
-                except Exception as e:
-                    promotePythonException(e)
+                thing.primitive_value = reprString(x)
             return builtin.__none__
     
     @wrapClass(base = GenericPrimitive)
@@ -1644,11 +1622,12 @@ class DummyBuiltin:
             if x._class is builtin.set:
                 thing.primitive_value = x.primitive_value
                 return builtin.__none__
+            l = [
+                encodeKey(element) 
+                for element in ThingIter(x)
+            ]
             try:
-                thing.primitive_value = set([
-                    encodeKey(element) 
-                    for element in ThingIter(x)
-                ])
+                thing.primitive_value = set(l)
             except Exception as e:
                 promotePythonException(e)
             return builtin.__none__
@@ -1663,8 +1642,9 @@ class DummyBuiltin:
         
         @wrapFuncion
         def __contains__(a, b):
+            encoding = encodeKey(b)
             try:
-                result = encodeKey(b) in a.primitive_value
+                result = encoding in a.primitive_value
             except Exception as e:
                 promotePythonException(e)
             return unprimitize(result)
@@ -1681,8 +1661,9 @@ class DummyBuiltin:
 
         @wrapFuncion
         def add(thing, other):
+            encoding = encodeKey(other)
             try:
-                thing.primitive_value.add(encodeKey(other))
+                thing.primitive_value.add(encoding)
             except Exception as e:
                 promotePythonException(e)
             return builtin.__none__
@@ -1869,6 +1850,9 @@ class DummyBuiltin:
             flush = flush.primitive_value
             if type(flush) is not bool:
                 raise TypeError('`print` argument `flush` must be bool.')
+        # from console import console
+        # console({**globals(), **locals()})
+        instantiate(builtin.str, (args[0], ))
         parts = [
             instantiate(builtin.str, (x, )).primitive_value 
             for x in args
@@ -1887,3 +1871,7 @@ for key, value in DummyBuiltin.__dict__.items():
         builtin.__setattr__(key, value)
 
 setName()
+
+if __name__ == '__main__':
+    from console import console
+    console({**globals(), **locals()})
