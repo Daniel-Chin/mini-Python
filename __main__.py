@@ -1,4 +1,5 @@
 import os
+import argparse
 from builtin import reprString
 from runtime import RunTime, Helicopter
 
@@ -32,3 +33,19 @@ def printStackTrace(helicopter : Helicopter):
         if helicopter is None:
             break
         print('\nDuring handling of the above exception, the below occured:\n')
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='miniPy', 
+    )
+    parser.add_argument(
+        'scriptname', type=str, nargs=1,
+        help='filename of the miniPy script to be executed', 
+    )
+
+    args = parser.parse_args()
+    from console import console
+    console({**globals(), **locals()})
+    args
+
+main()
