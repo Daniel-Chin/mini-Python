@@ -1,7 +1,8 @@
 to fix:
 
 todo:
-  helicopter stacking
   super()
+  dir()
+  locals, globals()
 
 search todo and ...

@@ -70,6 +70,7 @@ def isTrue(thing : rt.Thing) -> bool:
 
 def wrapFuncion(func):
     thing = instantiate(builtin.Function)
+    # this funcThing doesn't have a runTime, which is fine
     def wrapped(*args, **kw):
         try:
             return func(*args, **kw)

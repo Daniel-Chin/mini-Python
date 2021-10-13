@@ -27,6 +27,7 @@ class Thing:
         self.mst : FunctionDefinition = None
         self.default_args : Dict[str, Thing] = {}
         self.bound_args = []
+        self.runTime = None
 
         # if it is a primitive
         self.primitive_value = NULL
@@ -40,6 +41,7 @@ class Thing:
         thing.default_args    = self.default_args
         thing.bound_args      = self.bound_args
         thing.primitive_value = self.primitive_value
+        thing.runTime         = self.runTime
         return thing
     
     def call(self, *args, **keyword_args):
@@ -122,7 +124,7 @@ class Helicopter(Exception):
             unprimitize(remark), 
         )
         self.stack = []
-        self.during = None
+        self.below = None
 class ReturnAsException(Exception):
     def __init__(self, content = None):
         super().__init__()
@@ -159,51 +161,64 @@ def executeFunction(
         **func.default_args, **argument_namespace, 
     })
     return executeSequence(
+        func.runTime, 
         func.mst.body, 
         Environment([*func.environment, argument_namespace]), 
+        func.namespace['__name__'].primitive_value, 
     )
 
 def executeSequence(
-    runTime, sequence : Sequence, environment, 
+    runTime, sequence : Sequence, environment, label : str, 
 ) -> Thing:
     for subBlock in sequence:
         try:
             if type(subBlock) is CmdTree:
                 try:
                     executeCmdTree(runTime, subBlock, environment)
+                except Helicopter as h:
+                    recordStackTrace(h, label, subBlock)
                 except KeyboardInterrupt:
                     raise Helicopter(
                         builtin.KeyboardInterrupt
                     )
             elif type(subBlock) is Conditional:
                 subBlock : Conditional
-                condition = evalExpression(
-                    subBlock.condition[0], environment, 
-                )
+                try:
+                    condition = evalExpression(
+                        subBlock.condition[0], environment, 
+                    )
+                except Helicopter as h:
+                    recordStackTrace(h, label, subBlock.condition)
                 if isTrue(condition):
-                    executeSequence(subBlock.then, environment)
+                    executeSequence(runTime, subBlock.then, environment, label)
                 else:
                     for elIf in subBlock.elIfs:
-                        condition = evalExpression(
-                            elIf.condition[0], environment, 
-                        )
+                        try:
+                            condition = evalExpression(
+                                elIf.condition[0], environment, 
+                            )
+                        except Helicopter as h:
+                            recordStackTrace(h, label, elIf.condition)
                         if isTrue(condition):
-                            executeSequence(elIf.then, environment)
+                            executeSequence(runTime, elIf.then, environment, label)
                             break
                     else:
                         if subBlock._else is not None:
-                            executeSequence(subBlock._else, environment)
+                            executeSequence(runTime, subBlock._else, environment, label)
             elif type(subBlock) is WhileLoop:
                 subBlock : WhileLoop
                 broken = False
                 try:
                     while True:
-                        condition = evalExpression(
-                            subBlock.condition[0], environment, 
-                        )
+                        try:
+                            condition = evalExpression(
+                                subBlock.condition[0], environment, 
+                            )
+                        except Helicopter as h:
+                            recordStackTrace(h, label, subBlock.condition)
                         if isTrue(condition):
                             try:
-                                executeSequence(subBlock.body, environment)
+                                executeSequence(runTime, subBlock.body, environment, label)
                             except ContinueAsException:
                                 pass
                         else:
@@ -211,33 +226,45 @@ def executeSequence(
                 except BreakAsException:
                     broken = True
                 if not broken and subBlock._else is not None:
-                    executeSequence(subBlock._else)
+                    executeSequence(runTime, subBlock._else, environment, label)
             elif type(subBlock) is ForLoop:
                 subBlock : ForLoop
                 loopVar : ExpressionTree = subBlock.condition[0]
-                iterThing = ThingIter(evalExpression(
-                    subBlock.condition[1], environment, 
-                ))
+                try:
+                    iterThing = ThingIter(evalExpression(
+                        subBlock.condition[1], environment, 
+                    ))
+                except Helicopter as h:
+                    recordStackTrace(h, label, subBlock.condition)
                 broken = False
                 try:
-                    for nextThing in iterThing:
+                    while True:
+                        try:
+                            nextThing = next(iterThing)
+                        except StopIteration:
+                            break
+                        except Helicopter as h:
+                            recordStackTrace(h, label, subBlock.condition)
                         assignTo(nextThing, loopVar, environment)
-                        executeSequence(subBlock.body, environment)
+                        executeSequence(runTime, subBlock.body, environment, label)
                 except BreakAsException:
                     broken = True
                 if not broken and subBlock._else is not None:
-                    executeSequence(subBlock._else)
+                    executeSequence(runTime, subBlock._else, environment, label)
             elif type(subBlock) is TryExcept:
                 subBlock : TryExcept
                 handlers = []
                 for oneCatch in subBlock.oneCatches:
-                    catching = evalExpression(oneCatch.catching[0], environment)
+                    try:
+                        catching = evalExpression(oneCatch.catching[0], environment)
+                    except Helicopter as h:
+                        recordStackTrace(h, label, oneCatch.catching)
                     if catching._class is not builtin.Class:
                         ...
                         # cannot catch non-class
                     handlers.append((catching, oneCatch.handler))
                 try:
-                    executeSequence(subBlock._try, environment)
+                    executeSequence(runTime, subBlock._try, environment, label)
                 except Helicopter as h:
                     raised : Thing = h.content
                     if raised._class is builtin.Class:
@@ -247,19 +274,19 @@ def executeSequence(
                     for catching, handler in handlers:
                         if isSubclassOf(raisedClass, catching):
                             try:
-                                executeSequence(handler, environment)
+                                executeSequence(runTime, handler, environment, label)
                             except Helicopter as innerH:
-                                innerH.during = h
-                                raise innerH
+                                h.below = innerH
+                                raise h
                             break
                     else:
                         raise h
                 else:
                     if subBlock._else is not None:
-                        executeSequence(subBlock._else, environment)
+                        executeSequence(runTime, subBlock._else, environment, label)
                 finally:
                     if subBlock._finally is not None:
-                        executeSequence(subBlock._finally, environment)
+                        executeSequence(runTime, subBlock._finally, environment, label)
             elif type(subBlock) is FunctionDefinition:
                 subBlock : FunctionDefinition
                 identifier, *args = subBlock._def
@@ -267,28 +294,35 @@ def executeSequence(
                 func.namespace['__name__'] = unprimitize(identifier.value)
                 func.environment = environment
                 func.mst = subBlock
+                func.runTime = runTime
                 arg_names = set()
                 mandatory_args_finished = False
-                for arg in args:
-                    arg: FunctionArg
-                    name = arg.name.value
-                    if name in arg_names:
-                        ...
-                        # duplicate argument name
-                    arg_names.add(name)
-                    if arg.value is None:
-                        if mandatory_args_finished:
+                try:
+                    for arg in args:
+                        arg: FunctionArg
+                        name = arg.name.value
+                        if name in arg_names:
                             ...
-                            # mandatory arg after optional arg
-                    else:
-                        mandatory_args_finished = True
-                        defaultThing = evalExpression(arg.value, environment)
-                        func.default_args[name] = defaultThing
+                            # duplicate argument name
+                        arg_names.add(name)
+                        if arg.value is None:
+                            if mandatory_args_finished:
+                                ...
+                                # mandatory arg after optional arg
+                        else:
+                            mandatory_args_finished = True
+                            defaultThing = evalExpression(arg.value, environment)
+                            func.default_args[name] = defaultThing
+                except Helicopter as h:
+                    recordStackTrace(h, label, subBlock._def)
                 assignTo(func, identifier, environment)
             elif type(subBlock) is ClassDefinition:
                 subBlock : ClassDefinition
                 identifier, expressionTree = subBlock._class
-                base = evalExpression(expressionTree, environment)
+                try:
+                    base = evalExpression(expressionTree, environment)
+                except Helicopter as h:
+                    recordStackTrace(h, label, subBlock._class)
                 if base._class is not builtin.Class:
                     ...
                     # cannot inherit from a non-class
@@ -296,14 +330,14 @@ def executeSequence(
                 thisClass.namespace['__base__'] = base
                 thisClass.namespace['__name__'] = unprimitize(identifier.value)
                 executeSequence(
+                    runTime, 
                     subBlock.body, 
                     [*environment, thisClass.namespace], 
+                    identifier.value, 
                 )
                 assignTo(thisClass, identifier, environment)
         except ReturnAsException as e:
             return e.content
-        except Helicopter as e:
-            ...
 
 def isSubclassOf(potentialSubclass : Thing, potentialBaseclass : Thing):
     cursor = potentialSubclass
@@ -395,9 +429,9 @@ class RunTime:
             with open(filename, 'r', encoding='utf-8') as f:
                 lexer = Lexer(f)
                 root = Sequence()
-                root.parse(CmdsParser(lexer))
+                root.parse(CmdsParser(lexer, filename))
                 returned = executeSequence(
-                    self, root, [namespace], 
+                    self, root, [namespace], f'<module {name}>', 
                 )
                 if returned is not None:
                     # 'return' outside function
@@ -724,3 +758,9 @@ def assignTo(
         raise TypeError(
             'Cannot assign to non-Identifier non-ExpressionTree. '
         )   # this is a non-miniPy error
+
+def recordStackTrace(helicopter, label, cmdTree):
+    helicopter.stack.append(
+        (cmdTree.filename, cmdTree.line_number, label), 
+    )
+    raise helicopter

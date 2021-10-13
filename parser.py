@@ -70,6 +70,7 @@ class CmdTree(list):
         self.indent_level = None
         self.type = None    # *PREFIX_KEYWORDS | AssignCmd | ExpressionCmd
         self.line_number = None
+        self.filename = None
     
     def __repr__(self):
         s = self.type.__name__ + super().__repr__()
@@ -203,11 +204,12 @@ class CmdTree(list):
                     expect(last_lexem, (Assign, EoL))
             break
 
-def CmdsParser(lexer):
+def CmdsParser(lexer, filename):
     while True:
         cmdTree = CmdTree()
         try:
             cmdTree.parse(lexer)
+            cmdTree.filename = filename
         except StopIteration:
             return
         yield cmdTree
@@ -869,5 +871,5 @@ if __name__ == '__main__':
     with open('test.minipy', 'r') as f:
         lexer = Lexer(LookAheadIO(f))
         root = Sequence()
-        root.parse(CmdsParser(lexer))
+        root.parse(CmdsParser(lexer, 'test.minipy'))
         root.pprint()
