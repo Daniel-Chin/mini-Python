@@ -468,6 +468,32 @@ class builtin:
             thing.namespace['stop']  = unprimitize(stop )
             return builtin.__none__
     
+    @wrapClass()
+    class ListIterator:
+        @wrapFuncion
+        def __init__(thing, underlying):
+            thing.namespace['underlying'] = underlying
+            thing.namespace['acc'] = unprimitize(0)
+            return builtin.__none__
+        
+        @wrapFuncion
+        def __next__(thing):
+            thing.namespace['acc'].primitive_value += 1
+            if (
+                thing.namespace['acc'].primitive_value 
+                >= builtin.len.call(thing.namespace[
+                    'underlying'
+                ]).primitive_value
+            ):
+                raise rt.Helicopter(builtin.StopIteration)
+            return thing.namespace['underlying'].namespace[
+                '__getitem__'
+            ].call(thing.namespace['acc'])
+        
+        @wrapFuncion
+        def __iter__(thing):
+            return thing
+
     @wrapClass(base = GenericPrimitive)
     class ListAndTuple:
         @wrapFuncion
@@ -487,6 +513,18 @@ class builtin:
         def __len__(thing):
             return unprimitize(len(thing.primitive_value))
         
+        @wrapFuncion
+        def __contains__(a, b):
+            try:
+                result = b in a.primitive_value
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(result)
+                
+        @wrapFuncion
+        def __iter__(thing):
+            return instantiate(builtin.ListIterator, thing)
+                
         @wrapFuncion
         def index(thing, item):
             try:
@@ -641,7 +679,15 @@ class builtin:
                 for x in thing.primitive_value.keys()
             ])
             return builtin.iter.call(l)
-        
+
+        @wrapFuncion
+        def __contains__(a, b):
+            try:
+                result = encodeKey(b) in a.primitive_value
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(result)
+
         @wrapFuncion
         def clear(thing):
             thing.primitive_value.clear()
@@ -703,6 +749,14 @@ class builtin:
             ])
             return builtin.iter.call(l)
         
+        @wrapFuncion
+        def __contains__(a, b):
+            try:
+                result = encodeKey(b) in a.primitive_value
+            except Exception as e:
+                promotePythonException(e)
+            return unprimitize(result)
+
         @wrapFuncion
         def add(thing, other):
             try:
@@ -768,4 +822,16 @@ class builtin:
             '__repr__ did not return a str.', 
         )
 
-    del GenericPrimitive, ListAndTuple
+    @wrapFuncion
+    def type(x : rt.Thing):
+        return x._class
+    
+    @wrapFuncion
+    def iter(x : rt.Thing):
+        return x.namespace['__iter__'].call()
+    
+    @wrapFuncion
+    def next(x : rt.Thing):
+        return x.namespace['__next__'].call()
+    
+    del GenericPrimitive, ListAndTuple, ListIterator

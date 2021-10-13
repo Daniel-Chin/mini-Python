@@ -115,7 +115,7 @@ class Environment(list):
         self[-1].pop(name)
 
 class Helicopter(Exception): 
-    def __init__(self, minipyException, remark):
+    def __init__(self, minipyException, remark = ''):
         super().__init__()
         self.content : Thing = instantiate(
             minipyException, 
