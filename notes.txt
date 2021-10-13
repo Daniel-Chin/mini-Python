@@ -3,5 +3,6 @@ to fix:
 todo:
   dir()
   locals, globals()
+  print
 
 search todo and ...

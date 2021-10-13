@@ -88,7 +88,7 @@ class Namespace(dict):
             except KeyError:
                 raise Helicopter(
                     builtin.NameError, 
-                    f'Name "{key}" is not defined.', 
+                    f'Name "{key}" is not defined in namespace.', 
                 )
     
     def __setitem__(self, key, value) -> None:
@@ -104,12 +104,10 @@ class Environment(list):
     
     def read(self, name : str):
         for namespace in reversed(self):
-            try:
+            if name in namespace:
                 return namespace[name]
-            except KeyError:
-                pass
         raise Helicopter(
-            builtin.NameError, f'name "{name}" is not defined.', 
+            builtin.NameError, f'name "{name}" is not defined in environment.', 
         )
     
     def delete(self, name : str):
@@ -138,25 +136,40 @@ def executeFunction(
 ) -> Thing:
     argument_namespace = Namespace()
     arg_names = [x.name for x in func.mst._def[1:]]
+    i = -1
     for i, thing in enumerate(args):
         try:
             name = arg_names[i]
         except IndexError:
-            ...
-            raise Helicopter
+            raise Helicopter(
+                builtin.TypeError, 
+                reprString(func) + ' received too many arguments', 
+            )
         argument_namespace[name] = thing
-    if func.mst._def[i + 2].value is None:
-        # not enough args. 
-        ...
+    if len(func.mst._def) > i + 2 and func.mst._def[
+        i + 2
+    ].value is None:
+        raise Helicopter(
+            builtin.TypeError, 
+            reprString(func) + ' received not enough arguments', 
+        )
     for name, thing in keyword_args.items():
         if name in arg_names:
             if name in argument_namespace:
-                # multiple values for argument
-                ...
+                raise Helicopter(
+                    builtin.TypeError, 
+                    reprString(func) 
+                    + ' got multiple values for argument `'
+                    + name + '`.', 
+                )
             argument_namespace[name] = thing
         else:
-            # unknown argument
-            ...
+            raise Helicopter(
+                builtin.TypeError, 
+                reprString(func) 
+                + ' got unknown named argument `'
+                + name + '`.', 
+            )
     argument_namespace = Namespace({
         **func.default_args, **argument_namespace, 
     })
@@ -260,8 +273,10 @@ def executeSequence(
                     except Helicopter as h:
                         recordStackTrace(h, label, oneCatch.catching)
                     if catching._class is not builtin.Class:
-                        ...
-                        # cannot catch non-class
+                        raise Helicopter(
+                            builtin.TypeError, 
+                            f'{reprString(catching)} is a non-class, so miniPy cannot catch this.'
+                        )
                     handlers.append((catching, oneCatch.handler))
                 try:
                     executeSequence(runTime, subBlock._try, environment, label)
@@ -302,13 +317,19 @@ def executeSequence(
                         arg: FunctionArg
                         name = arg.name.value
                         if name in arg_names:
-                            ...
-                            # duplicate argument name
+                            raise Helicopter(
+                                builtin.TypeError, 
+                                'Duplicate argument name ' + name, 
+                            )
                         arg_names.add(name)
                         if arg.value is None:
                             if mandatory_args_finished:
-                                ...
-                                # mandatory arg after optional arg
+                                raise Helicopter(
+                                    builtin.TypeError, 
+                                    f'''Mandatory argument {
+                                        name
+                                    } after optional argument.''', 
+                                )
                         else:
                             mandatory_args_finished = True
                             defaultThing = evalExpression(arg.value, environment)
@@ -324,8 +345,11 @@ def executeSequence(
                 except Helicopter as h:
                     recordStackTrace(h, label, subBlock._class)
                 if base._class is not builtin.Class:
-                    ...
-                    # cannot inherit from a non-class
+                    raise Helicopter(
+                        builtin.TypeError, 
+                        reprString(base) + ' is a non-class. '
+                        + 'New class cannot inherit from a non-class.', 
+                    )
                 thisClass = instantiate(builtin.Class)
                 thisClass.namespace['__base__'] = base
                 thisClass.namespace['__name__'] = unprimitize(identifier.value)
@@ -434,8 +458,10 @@ class RunTime:
                     self, root, [namespace], f'<module {name}>', 
                 )
                 if returned is not None:
-                    # 'return' outside function
-                    ...
+                    raise Helicopter(
+                        builtin.Exception, 
+                        '"return" outside function.', 
+                    )
         finally:
             self.nowImportJobs.remove(job)
         self._modules[filename] = namespace
@@ -505,15 +531,19 @@ def evalExpression(
             funcArg : FunctionArg
             if funcArg.name is None:
                 if positional_finished:
-                    ...
-                    # positional after named! 
+                    raise Helicopter(
+                        builtin.TypeError, 
+                        'Positional argument after named arguments.', 
+                    )
                 args.append(evalExpression(funcArg.value, environment))
             else:
                 positional_finished = True
                 arg_name = funcArg.name.value
                 if arg_name in keyword_args:
-                    ...
-                    # duplicate argument
+                    raise Helicopter(
+                        builtin.TypeError, 
+                        'Duplicate argument `' + arg_name + '`. ', 
+                    )
                 keyword_args[arg_name] = evalExpression(
                     funcArg.value, environment, 
                 )
@@ -745,15 +775,28 @@ def assignTo(
         if slot.type in (ListDisplay, TupleDisplay):
             buffer = [*ThingIter(thing)]
             if len(buffer) != len(slot):
-                ...
-                # unpacking: dimension mismatch, x != y
+                raise Helicopter(
+                    builtin.ValueError, 
+                    'Dimension mismatch during unpacking, ' 
+                    + f'{len(slot)} ≠ {len(buffer)}. ', 
+                )
             for subSlot, subThing in zip(slot, buffer):
                 assignTo(subThing, subSlot, environment)
         if slot.type is Attributing:
             parent = evalExpression(slot[0], environment)
             assignTo(thing, slot[1], [parent.namespace])
         if slot.type in (Indexing, Slicing):
-            ...
+            indexee = evalExpression(slot[0], environment)
+            if slot.type is Indexing:
+                slice_or_index = evalExpression(slot[1], environment)
+            elif slot.type is Slicing:
+                slice_or_index = instantiate(
+                    builtin.slice, 
+                    evalExpression(slot[1], environment), 
+                    evalExpression(slot[2], environment), 
+                    evalExpression(slot[3], environment), 
+                )
+            indexee.namespace['__setitem__'].call(slice_or_index, thing)
     else:
         raise TypeError(
             'Cannot assign to non-Identifier non-ExpressionTree. '

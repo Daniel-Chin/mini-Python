@@ -26,8 +26,11 @@ def instantiate(theClass : rt.Thing, *args, **keyword_args):
     if '__init__' in thing.namespace:
         returned = thing.namespace['__init__'].call(*args, **keyword_args)
         if returned is not builtin.__none__:
-            ...
-            # init should not return non-None
+            raise rt.Helicopter(
+                builtin.TypeError, 
+                '__init__ should return None, not'
+                + reprString(returned), 
+            )
     return thing
 
 def unprimitize(primitive):
