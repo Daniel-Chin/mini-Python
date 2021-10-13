@@ -893,4 +893,31 @@ class builtin:
     def len(x : rt.Thing):
         return x.namespace['__len__'].call()
     
+    @wrapFuncion
+    def print(*args, sep=None, end=None, flush=None):
+        if sep is None:
+            sep = ' '
+        else:
+            sep = sep.primitive_value
+            if type(sep) is not str:
+                raise TypeError('argument `sep` must be str.')
+        if end is None:
+            end = '\n'
+        else:
+            end = end.primitive_value
+            if type(end) is not str:
+                raise TypeError('argument `end` must be str.')
+        if flush is None:
+            flush = False
+        else:
+            flush = flush.primitive_value
+            if type(flush) is not bool:
+                raise TypeError('argument `flush` must be bool.')
+        parts = [
+            instantiate(builtin.str, x).primitive_value 
+            for x in args
+        ]
+        print(*parts, sep=sep, end=end, flush=flush)
+        return builtin.__none__
+    
     del GenericPrimitive, ListAndTuple, ListIterator
