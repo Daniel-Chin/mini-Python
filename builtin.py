@@ -35,6 +35,8 @@ def unprimitize(primitive):
         if primitive:
             return builtin.__true__
         return builtin.__false__
+    elif primitive is None:
+        return builtin.__none__
     elif type(primitive) is dict:
         thing = instantiate(builtin.dict)
         for key, value in primitive.items():
@@ -445,9 +447,11 @@ class builtin:
         def __init__(thing, *args):
             safeArgs = []
             for arg in args:
-                if type(arg.primitive_value) is not int:
+                if type(arg.primitive_value) not in (
+                    int, type(None), 
+                ):
                     raise TypeError(
-                        '`slice` arguments must be `int`.'
+                        '`slice` arguments must be `int` or `None`.'
                     )
                 safeArgs.append(arg.primitive_value)
             start = 0
@@ -464,9 +468,19 @@ class builtin:
                 raise TypeError('`slice` expects at most four arguments.')
             thing.primitive_value = slice(start, stop, step)
             thing.namespace['start'] = unprimitize(start)
-            thing.namespace['step']  = unprimitize(step )
-            thing.namespace['stop']  = unprimitize(stop )
+            thing.namespace['stop' ] = unprimitize(stop )
+            thing.namespace['step' ] = unprimitize(step )
             return builtin.__none__
+        
+        @wrapFuncion
+        def __repr__(thing):
+            return unprimitize(f'''slice({
+                thing.namespace['start'].primitive_value
+            }, {
+                thing.namespace['stop' ].primitive_value, 
+            }, {
+                thing.namespace['step' ].primitive_value, 
+            })''')
     
     @wrapClass()
     class ListIterator:
@@ -493,6 +507,10 @@ class builtin:
         @wrapFuncion
         def __iter__(thing):
             return thing
+        
+        @wrapFuncion
+        def __repr__(thing):
+            return unprimitize('<listIterator>')
 
     @wrapClass(base = GenericPrimitive)
     class ListAndTuple:
@@ -555,6 +573,13 @@ class builtin:
             except Exception as e:
                 promotePythonException(e)
             return builtin.__none__
+
+        @wrapFuncion
+        def __repr__(thing):
+            reprs = [
+                reprString(x) for x in rt.ThingIter(thing)
+            ]
+            return unprimitize('[' + ', '.join(reprs) + ']')
 
         @wrapFuncion
         def clear(thing):
@@ -629,6 +654,15 @@ class builtin:
                     *rt.ThingIter(x), 
                 )
             return builtin.__none__
+        
+        @wrapFuncion
+        def __repr__(thing):
+            reprs = [
+                reprString(x) for x in rt.ThingIter(thing)
+            ]
+            if len(reprs) == 1:
+                reprs.append('')
+            return unprimitize('(' + ', '.join(reprs) + ')')
     
     @wrapClass(base = GenericPrimitive)
     class dict:
@@ -687,6 +721,15 @@ class builtin:
             except Exception as e:
                 promotePythonException(e)
             return unprimitize(result)
+        
+        @wrapFuncion
+        def __repr__(thing):
+            reprs = []
+            for key, value in thing.primitive_value.items():
+                reprs.append(f'''{reprString(decodeKey(key))}: {
+                    reprString(value)
+                }''')
+            return unprimitize('{' + ', '.join(reprs) + '}')
 
         @wrapFuncion
         def clear(thing):
@@ -756,6 +799,16 @@ class builtin:
             except Exception as e:
                 promotePythonException(e)
             return unprimitize(result)
+        
+        @wrapFuncion
+        def __repr__(thing):
+            reprs = []
+            for key in thing.primitive_value:
+                reprs.append(reprString(decodeKey(key)))
+            if reprs:
+                return unprimitize('{' + ', '.join(reprs) + '}')
+            else:
+                return unprimitize('set()')
 
         @wrapFuncion
         def add(thing, other):
@@ -833,5 +886,9 @@ class builtin:
     @wrapFuncion
     def next(x : rt.Thing):
         return x.namespace['__next__'].call()
+    
+    @wrapFuncion
+    def len(x : rt.Thing):
+        return x.namespace['__len__'].call()
     
     del GenericPrimitive, ListAndTuple, ListIterator
