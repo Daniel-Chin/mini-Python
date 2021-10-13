@@ -91,7 +91,7 @@ def wrapClass(base = None):
         for key, value in cls.__dict__.items():
             print('   ', key)
             thing.namespace[key] = value
-        thing.namespace['__name__'] = cls.__name__
+        thing.namespace['__name__'] = unprimitize(cls.__name__)
         if base is not None:
             thing.namespace['__base__'] = base
         return thing
@@ -125,6 +125,9 @@ def decodeKey(key):
     if type(key) is rt.Thing:
         return key
     return unprimitize(key)
+
+def reprString(thing):
+    return builtin.repr.call(thing).primitive_value
 
 class builtin:
     Class = rt.Thing()
@@ -196,9 +199,9 @@ class builtin:
         
         @wrapFuncion
         def __repr__(thing):
-            return (
-                thing._class.namespace['__name__'] 
-                + builtin.repr.call(thing.namespace['args'])
+            return unprimitize(
+                thing._class.namespace['__name__'].primitive_value 
+                + reprString(thing.namespace['args'])
             )
     
     @wrapClass(base = Exception)
@@ -615,7 +618,7 @@ class builtin:
             except KeyError:
                 raise rt.Helicopter(
                     builtin.KeyError, 
-                    'No key ' + builtin.repr.call(keyThing).primitive_value
+                    'No key ' + reprString(keyThing)
                 )
             except Exception as e:
                 promotePythonException(e)
@@ -673,6 +676,88 @@ class builtin:
             thing.primitive_value.update(other.primitive_value)
             return builtin.__none__
     
+    @wrapClass(base = GenericPrimitive)
+    class set:
+        @wrapFuncion
+        def __init__(thing, x = None):
+            thing.primitive_value = set()
+            if x is None:
+                return builtin.__none__
+            if x._class is builtin.set:
+                thing.primitive_value = x.primitive_value
+                return builtin.__none__
+            try:
+                thing.primitive_value = set([
+                    encodeKey(element) 
+                    for element in rt.ThingIter(x)
+                ])
+            except Exception as e:
+                promotePythonException(e)
+            return builtin.__none__
+        
+        @wrapFuncion
+        def __iter__(thing):
+            l = unprimitize([
+                decodeKey(x) 
+                for x in thing.primitive_value
+            ])
+            return builtin.iter.call(l)
+        
+        @wrapFuncion
+        def add(thing, other):
+            try:
+                thing.primitive_value.add(encodeKey(other))
+            except Exception as e:
+                promotePythonException(e)
+            return builtin.__none__
+        
+        @wrapFuncion
+        def clear(thing):
+            thing.primitive_value.clear()
+            return builtin.__none__
+        
+        @wrapFuncion
+        def discard(thing, other):
+            encoding = encodeKey(other)
+            thing.primitive_value.discard(encoding)
+            return builtin.__none__
+        
+        @wrapFuncion
+        def intersection(thing, other):
+            if type(other.primitive_value) is not set:
+                raise rt.Helicopter(
+                    builtin.TypeError, 
+                    'Can onlt intersect with another set, '
+                    + f'not {reprString(other)}', 
+                )
+            newSet = instantiate(builtin.set)
+            newSet = thing.primitive_value.intersection(
+                other.primitive_value, 
+            )
+            return newSet
+        
+        @wrapFuncion
+        def union(thing, other):
+            if type(other.primitive_value) is not set:
+                raise rt.Helicopter(
+                    builtin.TypeError, 
+                    'Can onlt union with another set, '
+                    + f'not {reprString(other)}', 
+                )
+            newSet = instantiate(builtin.set)
+            newSet = thing.primitive_value.union(
+                other.primitive_value, 
+            )
+            return newSet
+        
+        @wrapFuncion
+        def pop(thing):
+            try:
+                result = thing.primitive_value.pop()
+            except Exception as e:
+                promotePythonException(e)
+            return decodeKey(result)
+
     @wrapFuncion
     def repr(x : rt.Thing):
         result = x._class.namespace['__repr__'].call(x)

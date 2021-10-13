@@ -13,7 +13,7 @@ from parSer import (
     DictDisplay, SetDisplay, ListDisplay, Indexing, Slicing, 
     Binary, Unary, Attributing, ListComp, UnaryNegate, 
 )
-from builtin import assertPrimitive, builtin, instantiate, isTrue, unprimitize
+from builtin import assertPrimitive, builtin, instantiate, isTrue, reprString, unprimitize
 
 class NULL: pass
 
@@ -56,7 +56,7 @@ class Thing:
             except KeyError:
                 raise Helicopter(
                     builtin.TypeError, 
-                    f'{builtin.repr.call(self)} is not callable.', 
+                    f'{reprString(self)} is not callable.', 
                 )
     
     def __hash__(self):
@@ -295,7 +295,7 @@ def executeSequence(
                 thisClass = Thing()
                 thisClass._class = builtin.Class
                 thisClass.namespace['__base__'] = base
-                thisClass.namespace['__name__'] = identifier.value
+                thisClass.namespace['__name__'] = unprimitize(identifier.value)
                 executeSequence(
                     subBlock.body, 
                     [*environment, thisClass.namespace], 
