@@ -559,10 +559,10 @@ class RunTime:
         parts = name.split('.')
         for base in [self.dir_location, *self.minipypaths]:
             filename = os.path.join(base, *parts) + '.minipy'
-            dir_name = os.path.dirname(filename)
+            dir_name, no_dir = os.path.split(filename)
             if os.path.isdir(
                 dir_name
-            ) and filename in os.listdir(dir_name):
+            ) and no_dir in os.listdir(dir_name):
                 return os.path.normpath(filename)
         else:
             raise Helicopter(
@@ -602,7 +602,7 @@ class RunTime:
                 root = Sequence()
                 root.parse(CmdsParser(lexer, filename))
                 returned = executeSequence(
-                    self, root, [namespace], f'<module {name}>', 
+                    self, root, Environment([namespace]), f'<module {name}>', 
                 )
                 if returned is not None:
                     raise Helicopter(
@@ -799,7 +799,7 @@ def evalExpression(
             conditionTree = None
         iterThing = ThingIter(evalExpression(iterTree, environment))
         buffer = []
-        tempEnv = environment + [Namespace()]
+        tempEnv = Environment(environment + [Namespace()])
         for nextThing in iterThing:
             assignTo(nextThing, xTree, tempEnv)
             if isTrue(evalExpression(conditionTree, tempEnv)):

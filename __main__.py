@@ -15,7 +15,7 @@ def printStackTrace(helicopter : Helicopter):
     print('miniPy traceback (most recent call last):')
     while True:
         for filename, line_number, label in helicopter.stack:
-            acc = line_number
+            acc = line_number - 1
             with open(filename, 'r') as f:
                 for line in f:
                     if acc == 0:
