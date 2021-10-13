@@ -23,7 +23,7 @@ class Thing:
         self.namespace = Namespace()
 
         # if it is a function
-        self.environment = []
+        self.environment = Environment()
         self.mst : FunctionDefinition = None
         self.default_args : Dict[str, Thing] = {}
         self.bound_args = []
