@@ -1,7 +1,7 @@
 to fix:
 
 todo:
-  check usage of __xx__. most of them should be builtin.xx.call
+  NameSpaceKeyError
   helicopter stacking
   super()
 

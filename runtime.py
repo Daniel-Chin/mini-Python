@@ -264,7 +264,7 @@ def executeSequence(
                 subBlock : FunctionDefinition
                 identifier, *args = subBlock._def
                 func = instantiate(builtin.Function)
-                func.namespace['__name__'] = identifier.value
+                func.namespace['__name__'] = unprimitize(identifier.value)
                 func.environment = environment
                 func.mst = subBlock
                 arg_names = set()
@@ -317,10 +317,10 @@ def isSubclassOf(potentialSubclass : Thing, potentialBaseclass : Thing):
     return True
 
 def ThingIter(thing : Thing):
-    theIter : Thing = thing.namespace['__iter__'].call()
+    theIter : Thing = builtin.iter.call(thing)
     while True:
         try:
-            nextThing = theIter.namespace['__next__'].call()
+            nextThing = builtin.next.call(theIter)
         except Helicopter as h:
             if h.content._class is builtin.StopIteration:
                 return
@@ -499,11 +499,11 @@ def evalExpression(
         elif eTree.type is Slicing:
             slicee = evalExpression(eTree[0], environment)
             start = evalExpression(eTree[1], environment)
-            end = evalExpression(eTree[2], environment)
+            stop = evalExpression(eTree[2], environment)
             step = evalExpression(eTree[3], environment)
             try:
-                return slicee.namespace['__getslice__'].call(
-                    unprimitize((start, end, step))
+                return slicee.namespace['__getitem__'].call(
+                    instantiate(builtin.slice, start, stop, step), 
                 )
             except KeyError:
                 raise NameSpaceKeyError('slicing')

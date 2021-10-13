@@ -40,12 +40,12 @@ def unprimitize(primitive):
     elif type(primitive) is dict:
         thing = instantiate(builtin.dict)
         for key, value in primitive.items():
-            thing.namespace('__setitem__').call(key, value)
+            thing.namespace['__setitem__'].call(key, value)
         return thing
     elif type(primitive) is set:
         thing = instantiate(builtin.set)
         for key in primitive:
-            thing.namespace('add').call(key)
+            thing.namespace['add'].call(key)
         return thing
     _class = {
         int  : builtin.int  , 
@@ -66,9 +66,7 @@ def assertPrimitive(thing):
         )
 
 def isTrue(thing : rt.Thing) -> bool:
-    if thing.namespace['__bool__'].call().primitive_value:
-        return builtin.__true__
-    return builtin.__false__
+    return builtin.bool.call(thing).primitive_value
 
 def wrapFuncion(func):
     thing = instantiate(builtin.Function)
@@ -84,7 +82,7 @@ def wrapFuncion(func):
             else:
                 raise e
     thing.call = wrapped
-    thing.namespace['__name__'] = '(builtin) ' + func.__name__
+    thing.namespace['__name__'] = unprimitize('(builtin) ' + func.__name__)
     return thing
 
 def wrapClass(base = None):
@@ -134,10 +132,10 @@ def reprString(thing):
 class builtin:
     Class = rt.Thing()
     Class._class = Class
-    Class.namespace['__name__'] = 'Class'
+    Class.namespace['__name__'] = unprimitize('Class')
     Class.namespace['__repr__'] = wrapFuncion(
         lambda thing : unprimitize(
-            f'<class "{thing.namespace["__name__"]}">'
+            f'<class "{thing.namespace["__name__"].primitive_value}">'
         )
     )
     Class.namespace['__str__'] = Class.namespace['__repr__']
@@ -150,7 +148,7 @@ class builtin:
         @wrapFuncion
         def __repr__(thing):
             try: 
-                name = thing.namespace['__name__']
+                name = thing.namespace['__name__'].primitive_value
             except KeyError:
                 name = ''
             return unprimitize(f'<function {name}>')
