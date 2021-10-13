@@ -1,5 +1,4 @@
 from __future__ import annotations
-from lexems import Except
 import runtime as rt
 
 def instantiate(theClass : rt.Thing, *args, **keyword_args):
@@ -70,6 +69,8 @@ def assertPrimitive(thing):
 
 def isTrue(thing : rt.Thing) -> bool:
     return builtin.bool.call(thing).primitive_value
+def isNone(thing : rt.Thing) -> bool:
+    return thing.primitive_value is None
 
 def wrapFuncion(func):
     thing = instantiate(builtin.Function)
@@ -477,11 +478,11 @@ class builtin:
         @wrapFuncion
         def __repr__(thing):
             return unprimitize(f'''slice({
-                thing.namespace['start'].primitive_value
+                reprString(thing.namespace['start'])
             }, {
-                thing.namespace['stop' ].primitive_value, 
+                reprString(thing.namespace['stop' ])
             }, {
-                thing.namespace['step' ].primitive_value, 
+                reprString(thing.namespace['step' ])
             })''')
     
     @wrapClass()
@@ -866,6 +867,87 @@ class builtin:
             except Exception as e:
                 promotePythonException(e)
             return decodeKey(result)
+    
+    @wrapClass()
+    class range:
+        @wrapFuncion
+        def __init__(thing, *args):
+            safeArgs = []
+            for arg in args:
+                if type(arg.primitive_value) is not int:
+                    raise TypeError(
+                        '`range` arguments must be `int`.'
+                    )
+                safeArgs.append(arg.primitive_value)
+            start = 0
+            step = 1
+            if len(safeArgs) < 1:
+                raise TypeError('`range` expects at least one argument.')
+            elif len(safeArgs) == 1:
+                stop, = safeArgs
+            elif len(safeArgs) == 2:
+                start, stop = safeArgs
+            elif len(safeArgs) == 3:
+                start, stop, step = safeArgs
+            else:
+                raise TypeError('`range` expects at most four arguments.')
+            thing.namespace['start'] = unprimitize(start)
+            thing.namespace['stop' ] = unprimitize(stop )
+            thing.namespace['step' ] = unprimitize(step )
+            thing.namespace['acc'  ] = builtin.__none__
+            return builtin.__none__
+        
+        @wrapFuncion
+        def __repr__(thing):
+            s = f'''range({
+                reprString(thing.namespace['start'])
+            }, {
+                reprString(thing.namespace['stop' ])
+            }, {
+                reprString(thing.namespace['step' ])
+            })'''
+            acc = thing.namespace['acc']
+            if not isNone(acc):
+                s = f'<iter {s} next={reprString(acc)}>'
+            return unprimitize(s)
+        
+        @wrapFuncion
+        def __iter__(thing : rt.Thing):
+            other = thing.copy()
+            other.namespace['acc'] = thing.namespace['start']
+            return other
+        
+        @wrapFuncion
+        def __next__(thing):
+            acc = thing.namespace['acc'].primitve_value
+            if acc is None:
+                raise rt.Helicopter(
+                    builtin.TypeError, 
+                    '`range` object is not iterable. ' 
+                    + 'Hint: `iter()` it first?', 
+                )
+            step = thing.namespace['step'].primitve_value
+            stop = thing.namespace['stop'].primitve_value
+            if not (
+                type(acc ) is int and 
+                type(step) is int and 
+                type(stop) is int
+            ):
+                raise rt.Helicopter(
+                    builtin.TypeError, 
+                    "`range`'s `acc`, `stop`, and `step` must be int.", 
+                )
+            if step == 0:
+                raise rt.Helicopter(
+                    builtin.ValueError, 
+                    "`range`'s `step` must be non-zero.", 
+                )
+            if (acc - stop) * step >= 0:
+                raise rt.Helicopter(
+                    builtin.StopIteration, 
+                )
+            thing.namespace['acc'] = unprimitize(acc + step)
+            return unprimitize(acc)
 
     @wrapFuncion
     def repr(x : rt.Thing):
@@ -900,24 +982,30 @@ class builtin:
         else:
             sep = sep.primitive_value
             if type(sep) is not str:
-                raise TypeError('argument `sep` must be str.')
+                raise TypeError('`print` argument `sep` must be str.')
         if end is None:
             end = '\n'
         else:
             end = end.primitive_value
             if type(end) is not str:
-                raise TypeError('argument `end` must be str.')
+                raise TypeError('`print` argument `end` must be str.')
         if flush is None:
             flush = False
         else:
             flush = flush.primitive_value
             if type(flush) is not bool:
-                raise TypeError('argument `flush` must be bool.')
+                raise TypeError('`print` argument `flush` must be bool.')
         parts = [
             instantiate(builtin.str, x).primitive_value 
             for x in args
         ]
         print(*parts, sep=sep, end=end, flush=flush)
         return builtin.__none__
+    
+    @wrapFuncion
+    def input(prompt = None):
+        if prompt is not None:
+            print(reprString(prompt), end='', flush=True)
+        return unprimitize(input())
     
     del GenericPrimitive, ListAndTuple, ListIterator

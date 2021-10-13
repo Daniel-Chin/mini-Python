@@ -1,6 +1,11 @@
 to fix:
 
 todo:
+  reversed
+  round
+  sorted
+  sum
+  zip
 
 search todo and ...
 
