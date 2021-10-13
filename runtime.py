@@ -18,9 +18,9 @@ from parSer import (
 class NULL: pass
 
 class Thing:
-    def __init__(self, skip_wrap = False) -> None:
+    def __init__(self) -> None:
         self._class : Thing = None
-        self.namespace = Namespace(skip_wrap = skip_wrap)
+        self.namespace = Namespace()
 
         # if it is a function
         self.environment = None
@@ -35,12 +35,9 @@ class Thing:
         self.wrappedFrom = None
     
     def copy(self):
-        thing = Thing(skip_wrap=True)
+        thing = Thing()
         thing._class          = self._class
-        thing.namespace       = Namespace(
-            self.namespace, skip_wrap = True, 
-        )
-        thing.namespace.add__dict__()
+        thing.namespace       = Namespace(self.namespace)
         thing.environment     = self.environment
         thing.mst             = self.mst
         thing.default_args    = self.default_args
@@ -85,9 +82,9 @@ class Thing:
 
 def instantiate(
     theClass : Thing, args = (), keyword_args = {}, 
-    skip_wrap = False, skip_init = False, 
+    skip_init = False, 
 ):
-    thing = Thing(skip_wrap = skip_wrap)
+    thing = Thing()
     thing._class = theClass
     baseclass = theClass
     while True:
@@ -141,10 +138,7 @@ def unprimitize(primitive):
         list : builtin.list , 
         tuple: builtin.tuple, 
     }[type(primitive)]
-    thing = instantiate(
-        _class, 
-        skip_wrap = type(primitive) is str, 
-    )
+    thing = instantiate(_class)
     thing.primitive_value = primitive
     return thing
 
@@ -166,7 +160,7 @@ def setName():
         thing.namespace['__name__'] = unprimitize(s)
 
 def wrapFuncion(func):
-    thing = instantiate(builtin.Function, skip_wrap=True)
+    thing = instantiate(builtin.Function)
     # this funcThing doesn't have a runTime or a __dict__, which is fine
     def wrapped(*args, **kw):
         try:
@@ -198,18 +192,13 @@ def wrapClass(base = None):
     return _wrapClass
 
 class Namespace(dict):
-    def __init__(self, *args, skip_wrap = False):
+    def __init__(self, *args):
         super().__init__(*args)
         self.forbidden = set()
-        if not skip_wrap:
-            self.add__dict__()
     
     def forbid(self, name):
         self.forbidden.add(name)
     
-    def add__dict__(self):
-        self['__dict__'] = wrapFuncion(self.wrapSelf)
-
     def wrapSelf(self):
         return unprimitize(self)
 
@@ -223,6 +212,8 @@ class Namespace(dict):
             try:
                 return super().__getitem__(key)
             except KeyError:
+                if key == '__dict__':
+                    return self.wrapSelf()
                 if '__name__' in self:
                     name = self['__name__']
                 else:
@@ -992,11 +983,11 @@ class Builtin:
         return namespace
 builtin = Builtin()
 
-builtin.Class = Thing(skip_wrap = True)
+builtin.Class = Thing()
 builtin.Class._class = Class
 
 def buildFunc():
-    Function = Thing(skip_wrap = True)
+    Function = Thing()
     Function._class = Class
     def __func_repr__(thing):
         if '__name__' in thing.namespace:
@@ -1004,7 +995,7 @@ def buildFunc():
         else:
             name = 'anonymous'
         return unprimitize(f'<function {name}>')
-    Function.namespace['__repr__'] = Thing(skip_wrap = True)
+    Function.namespace['__repr__'] = Thing()
     Function.namespace['__repr__']._class = Function
     Function.namespace['__repr__'].call = __func_repr__
     builtin.Function = Function
@@ -1877,9 +1868,6 @@ class DummyBuiltin:
         return unprimitize(input())
     
     del GenericPrimitive, ListAndTuple, ListIterator
-
-builtin.Class.namespace.add__dict__()
-builtin.Function.namespace.add__dict__()
 
 for key, value in DummyBuiltin.__dict__.items():
     if type(value) is Thing:
