@@ -66,14 +66,14 @@ class Thing:
     
     def __repr__(self):
         if '__name__' in self.namespace:
-            name = self.namespace['__name__']
+            name = self.namespace['__name__'].primitive_value
         elif self.wrappedFrom is not None:
             name = 'wrapped ' + self.wrappedFrom.__name__
         else:
             name = '?'
         _class = self._class
         if '__name__' in _class.namespace:
-            class_name = _class.namespace['__name__']
+            class_name = _class.namespace['__name__'].primitive_value
         elif _class.wrappedFrom is not None:
             class_name = 'wrapped ' + _class.wrappedFrom.__name__
         else:
@@ -264,6 +264,9 @@ class Helicopter(Exception):
         )
         self.stack = []
         self.below = None
+        self.remark = remark
+    def __repr__(self):
+        return 'Helicopter -> ' + repr(self.content) + self.remark
 class ReturnAsException(Exception):
     def __init__(self, content = None):
         super().__init__()
@@ -545,9 +548,9 @@ class RunTime:
 
     def __init__(self, dir_location):
         self.dir_location = dir_location
-        self.minipypaths = [*reversed(os.environ.get(
-            'MINIPYPATH', '', 
-        ).split(';'))]
+        self.minipypaths = [x for x in reversed(
+            os.environ.get('MINIPYPATH', '', ).split(';')
+        ) if os.path.isdir(x)]
         self._modules : Dict[str, dict] = {}
         # filename -> namespace
         self.nowImportJobs : Set[self.ImportJob] = set()
@@ -556,14 +559,17 @@ class RunTime:
         parts = name.split('.')
         for base in [self.dir_location, *self.minipypaths]:
             filename = os.path.join(base, *parts) + '.minipy'
-            if filename in os.listdir(os.path.dirname(filename)):
+            dir_name = os.path.dirname(filename)
+            if os.path.isdir(
+                dir_name
+            ) and filename in os.listdir(dir_name):
                 return os.path.normpath(filename)
         else:
             raise Helicopter(
                 builtin.ImportError, 
                 f'Script "{name}" not found. Hint: ' 
                 + 'Name is case-sensitive. ".minipy" ' 
-                + 'extension is also case-sensitive.'
+                + 'extension is also case-sensitive.', 
             )
     
     def getModule(self, name):
@@ -1354,7 +1360,6 @@ class DummyBuiltin:
         
         @wrapFuncion
         def __next__(thing):
-            thing.namespace['acc'].primitive_value += 1
             if (
                 thing.namespace['acc'].primitive_value 
                 >= builtin.len.call(thing.namespace[
@@ -1362,9 +1367,11 @@ class DummyBuiltin:
                 ]).primitive_value
             ):
                 raise Helicopter(builtin.StopIteration)
-            return thing.namespace['underlying'].namespace[
+            result = thing.namespace['underlying'].namespace[
                 '__getitem__'
             ].call(thing.namespace['acc'])
+            thing.namespace['acc'].primitive_value += 1
+            return result
         
         @wrapFuncion
         def __iter__(thing):
@@ -1400,18 +1407,18 @@ class DummyBuiltin:
             except Exception as e:
                 promotePythonException(e)
             return unprimitize(result)
-                
+        
         @wrapFuncion
         def __iter__(thing):
             return instantiate(builtin.ListIterator, (thing, ))
-                
+        
         @wrapFuncion
         def index(thing, item):
             try:
                 return thing.primitive_value.index(item)
             except Exception as e:
                 promotePythonException(e)
-        
+    
     @wrapClass(base = ListAndTuple)
     class list:
         @wrapFuncion
@@ -1810,7 +1817,15 @@ class DummyBuiltin:
 
     @wrapFuncion
     def repr(x : Thing):
-        result = x._class.namespace['__repr__'].call(x)
+        base_class = x._class
+        while True:
+            if '__repr__' in base_class.namespace:
+                result = base_class.namespace['__repr__'].call(x)
+                break
+            if '__base__' in base_class.namespace:
+                base_class = base_class.namespace['__base__']
+            else:
+                raise Exception('__repr__ not implemented in a thing.')
         if result._class is builtin.str:
             return result
         raise Helicopter(
@@ -1866,8 +1881,6 @@ class DummyBuiltin:
         if prompt is not None:
             print(reprString(prompt), end='', flush=True)
         return unprimitize(input())
-    
-    del GenericPrimitive, ListAndTuple, ListIterator
 
 for key, value in DummyBuiltin.__dict__.items():
     if type(value) is Thing:
